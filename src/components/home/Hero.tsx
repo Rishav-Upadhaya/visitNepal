@@ -1,11 +1,12 @@
 
-"use client"; // Add this directive
+"use client"; 
 
 import { Button } from '@/components/ui/button';
-import { ArrowRight, Map } from 'lucide-react'; // Using Map icon
+import { ArrowRight, Map } from 'lucide-react';
 import dynamic from 'next/dynamic';
 import Link from 'next/link';
-import { Skeleton } from '@/components/ui/skeleton'; // Import Skeleton for loading state
+import { Skeleton } from '@/components/ui/skeleton';
+import Image from 'next/image'; // Import next/image
 
 // Lazy load the map component
 const HomepageMapWithNoSSR = dynamic(
@@ -13,9 +14,9 @@ const HomepageMapWithNoSSR = dynamic(
   {
     ssr: false,
     loading: () => (
-      <div className="aspect-[16/7] w-full bg-muted rounded-xl flex items-center justify-center">
+      <div className="aspect-[16/9] w-full bg-muted rounded-xl flex items-center justify-center"> {/* Adjusted aspect ratio */}
         <Skeleton className="h-full w-full" />
-        <p className="absolute text-primary font-semibold">Loading Map...</p>
+        <p className="absolute text-primary font-semibold">Loading Interactive Map...</p>
       </div>
     )
   }
@@ -40,14 +41,12 @@ export function Hero() {
       </div>
 
       <div className="container mt-16 md:mt-24">
-        {/* Interactive Map Section */}
         <div className="bg-muted/10 p-4 md:p-6 rounded-xl shadow-2xl border border-primary/10">
           <h2 className="text-2xl md:text-3xl font-bold text-primary text-center mb-4">
-            Interactive Map of Nepal
+            Discover Nepal: An Interactive Overview
           </h2>
           <p className="text-center text-muted-foreground mb-6 max-w-2xl mx-auto">
-            Click on provinces or major cities to discover more. Zoom and pan to explore the geography of Nepal.
-            (Data loads from a sample GeoJSON and mock Firestore data for now).
+            Explore Nepal's provinces and major cities. Click on regions or markers to get more information and start planning your journey.
           </p>
           <HomepageMapWithNoSSR />
         </div>
@@ -55,3 +54,4 @@ export function Hero() {
     </section>
   );
 }
+

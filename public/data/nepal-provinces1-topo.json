@@ -1,0 +1,66 @@
+
+{
+  "type": "Topology",
+  "objects": {
+    "nepal_provinces": {
+      "type": "GeometryCollection",
+      "geometries": [
+        {
+          "type": "Polygon",
+          "arcs": [[0, 1, 2, 3]],
+          "properties": { "OBJECTID": 1, "ADM1_EN": "Koshi Province", "ADM0_EN": "Nepal" }
+        },
+        {
+          "type": "Polygon",
+          "arcs": [[-3, 4, 5]],
+          "properties": { "OBJECTID": 2, "ADM1_EN": "Madhesh Province", "ADM0_EN": "Nepal" }
+        },
+        {
+          "type": "Polygon",
+          "arcs": [[-5, -2, 6, 7]],
+          "properties": { "OBJECTID": 3, "ADM1_EN": "Bagmati Province", "ADM0_EN": "Nepal" }
+        },
+        {
+          "type": "Polygon",
+          "arcs": [[-7, 8, 9]],
+          "properties": { "OBJECTID": 4, "ADM1_EN": "Gandaki Province", "ADM0_EN": "Nepal" }
+        },
+        {
+          "type": "Polygon",
+          "arcs": [[-9, -4, -6, 10]],
+          "properties": { "OBJECTID": 5, "ADM1_EN": "Lumbini Province", "ADM0_EN": "Nepal" }
+        },
+        {
+          "type": "Polygon",
+          "arcs": [[-11, 11, 12]],
+          "properties": { "OBJECTID": 6, "ADM1_EN": "Karnali Province", "ADM0_EN": "Nepal" }
+        },
+        {
+          "type": "Polygon",
+          "arcs": [[-10, -8, -12, 13]],
+          "properties": { "OBJECTID": 7, "ADM1_EN": "Sudurpashchim Province", "ADM0_EN": "Nepal" }
+        }
+      ]
+    }
+  },
+  "arcs": [
+    [[86.3,27.4],[86.0,27.0],[86.5,26.5]],
+    [[86.5,26.5],[87.0,26.8],[87.5,26.5]],
+    [[87.5,26.5],[88.0,27.0],[87.5,27.5],[86.3,27.4]],
+    [[86.5,26.5],[86.0,26.0],[85.0,26.3]],
+    [[85.0,26.3],[85.5,26.8],[86.0,27.0]],
+    [[86.0,27.0],[84.5,27.0],[85.0,26.3]],
+    [[86.0,27.0],[85.0,27.5],[84.0,27.8]],
+    [[84.0,27.8],[83.0,28.0],[84.5,27.0]],
+    [[84.5,27.0],[83.5,27.5],[82.5,28.0]],
+    [[82.5,28.0],[83.0,28.0],[84.0,27.8]],
+    [[85.0,26.3],[84.0,26.0],[82.0,26.5]],
+    [[82.0,26.5],[81.0,27.0],[82.5,28.0]],
+    [[82.5,28.0],[81.5,28.5],[80.5,29.0]],
+    [[80.5,29.0],[82.0,26.5],[81.0,27.0]]
+  ],
+  "transform": {
+    "scale": [0.001, 0.001],
+    "translate": [80.0, 26.0]
+  }
+}
