@@ -6,7 +6,7 @@ import { ArrowRight, Map } from 'lucide-react';
 import dynamic from 'next/dynamic';
 import Link from 'next/link';
 import { Skeleton } from '@/components/ui/skeleton';
-import Image from 'next/image'; // Import next/image
+// Removed direct Image import as map placeholder is handled by HomepageMap loader
 
 // Lazy load the map component
 const HomepageMapWithNoSSR = dynamic(
@@ -14,7 +14,7 @@ const HomepageMapWithNoSSR = dynamic(
   {
     ssr: false,
     loading: () => (
-      <div className="aspect-[16/9] w-full bg-muted rounded-xl flex items-center justify-center"> {/* Adjusted aspect ratio */}
+      <div className="aspect-[16/9] w-full bg-muted rounded-xl flex items-center justify-center">
         <Skeleton className="h-full w-full" />
         <p className="absolute text-primary font-semibold">Loading Interactive Map...</p>
       </div>
@@ -46,7 +46,7 @@ export function Hero() {
             Discover Nepal: An Interactive Overview
           </h2>
           <p className="text-center text-muted-foreground mb-6 max-w-2xl mx-auto">
-            Explore Nepal's provinces and major cities. Click on regions or markers to get more information and start planning your journey.
+            Hover over Nepal's provinces or click on major cities on the map below. Explore detailed information and start planning your unique journey!
           </p>
           <HomepageMapWithNoSSR />
         </div>
@@ -55,3 +55,4 @@ export function Hero() {
   );
 }
 
+    
