@@ -1,13 +1,13 @@
 
 "use client";
 
-import type { GeoJSON as LocalGeoJSON, ProvinceFeatureProperties, ExtendedProvinceMapData, ExtendedCityMapData } from '@/types';
+import type { ExtendedCityMapData, ExtendedProvinceMapData, ProvinceFeatureProperties } from '@/types';
 import { db } from '@/lib/firebase';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { collection, getDocs, type DocumentData } from 'firebase/firestore';
-import { InfoIcon, ExternalLink, XIcon, MapPin } from 'lucide-react';
+import { InfoIcon, ExternalLink, XIcon, MapPin, Users, LucideIcon } from 'lucide-react';
 import Link from 'next/link';
 import * as React from 'react';
 import {
@@ -19,7 +19,7 @@ import {
 } from 'react-simple-maps';
 import { cn } from "@/lib/utils";
 
-const NEPAL_GEO_URL = "/data/nepal-provinces-topo.json";
+const NEPAL_GEO_URL = "/data/nepal-provinces-topo.json"; // Ensure this path is correct
 
 type SelectedFeatureInfo = {
   feature: ExtendedProvinceMapData | ExtendedCityMapData;
@@ -44,6 +44,10 @@ export function HomepageMap() {
   const mapContainerRef = React.useRef<HTMLDivElement>(null);
 
   React.useEffect(() => {
+    console.log("HomepageMap: DEBUG - selectedFeatureInfo state updated:", selectedFeatureInfo);
+  }, [selectedFeatureInfo]);
+
+  React.useEffect(() => {
     const fetchData = async () => {
       setIsLoading(true);
       setFetchError(null);
@@ -56,7 +60,7 @@ export function HomepageMap() {
         }
         const topoJsonData: any = await geoRes.json();
         
-        console.log("HomepageMap: DEBUG - TopoJSON fetched successfully. Parsed data sample:", JSON.stringify(topoJsonData, null, 2).substring(0, 500) + "...");
+        console.log("HomepageMap: DEBUG - TopoJSON fetched successfully. Parsed data sample:", JSON.stringify(topoJsonData, null, 2).substring(0, 200) + "...");
 
         if (typeof topoJsonData !== 'object' || topoJsonData === null || !topoJsonData.objects || Object.keys(topoJsonData.objects).length === 0) {
           setFetchError(`Invalid TopoJSON structure in ${NEPAL_GEO_URL}: 'objects' property is missing, empty, or file is not valid JSON. Received: ${JSON.stringify(topoJsonData, null, 2).substring(0, 500)}`);
@@ -65,7 +69,7 @@ export function HomepageMap() {
         }
         
         const firstKey = Object.keys(topoJsonData.objects)[0];
-        if (!firstKey || !topoJsonData.objects[firstKey] || !(topoJsonData.objects[firstKey].type === "GeometryCollection" && Array.isArray(topoJsonData.objects[firstKey].geometries))) {
+        if (!firstKey || !topoJsonData.objects[firstKey] || !topoJsonData.objects[firstKey].geometries) {
              setFetchError(`Invalid TopoJSON: Layer "${firstKey}" in ${NEPAL_GEO_URL} is not a GeometryCollection or does not contain 'geometries'. Expected format: { "type": "Topology", "objects": { "your_layer_name": { "type": "GeometryCollection", "geometries": [...] } }, "arcs": [...] }.`);
              setIsLoading(false);
              return;
@@ -110,11 +114,8 @@ export function HomepageMap() {
     fetchData();
   }, []);
   
-  React.useEffect(() => {
-    console.log("HomepageMap: DEBUG - selectedFeatureInfo state updated:", selectedFeatureInfo);
-  }, [selectedFeatureInfo]);
-
   const handleMapContainerClick = React.useCallback((event: React.MouseEvent<HTMLDivElement>) => {
+     // Only close if the click is directly on the map container and not on an info box or its elements
      if (event.target === event.currentTarget) {
         console.log("HomepageMap: DEBUG - Map background clicked, setting selectedFeatureInfo to null.");
         setSelectedFeatureInfo(null);
@@ -140,7 +141,7 @@ export function HomepageMap() {
           {fetchError || `Could not load or parse map data. Ensure /public/data/nepal-provinces-topo.json is correct and Firebase data is accessible.`}
         </p>
          <p className="text-xs mt-2">
-            {fetchError && (fetchError.includes("offline") || fetchError.includes("Failed to get document") || fetchError.includes("Firebase")) 
+            {fetchError && (fetchError.includes("offline") || fetchError.includes("Failed to get document") || fetchError.includes("firestore/unavailable") || fetchError.includes("Firebase")) 
                 ? "Please check your Firebase configuration and internet connection." 
                 : "Verify the TopoJSON file structure in public/data/ and check console logs for more details."}
         </p>
@@ -154,51 +155,39 @@ export function HomepageMap() {
       className="relative aspect-[16/9] w-full bg-lime-100 dark:bg-green-900/30 rounded-lg shadow-lg overflow-hidden border border-border"
       onClick={handleMapContainerClick}
     >
-      {selectedFeatureInfo && selectedFeatureInfo.feature && (
+      {selectedFeatureInfo && (
+        // Simplified Debug Info Box - Fixed position, bright colors
         <div
           style={{
-            position: 'fixed',
+            position: 'fixed', // Use fixed for viewport relative positioning
             left: `${selectedFeatureInfo.pageX + 15}px`,
             top: `${selectedFeatureInfo.pageY + 15}px`,
+            // Ensure visibility for debugging
             transform: mapContainerRef.current && selectedFeatureInfo.pageX > mapContainerRef.current.clientWidth - 280 ? 'translateX(calc(-100% - 30px))' : 'translateX(0px)',
-            width: '256px', // Equivalent to w-64
-            zIndex: 50, // Tailwind z-50
           }}
           className={cn(
-            "p-0 shadow-xl border border-border rounded-md",
-            "bg-card text-card-foreground"
+            "p-3 w-64 shadow-xl border-2 border-yellow-500 z-[99999] rounded-md",
+            "bg-pink-500 text-white font-bold" // Extremely visible debug style
           )}
-          onClick={(e) => e.stopPropagation()}
+          onClick={(e) => e.stopPropagation()} // Prevent map click from closing it
         >
-          <CardHeader className="p-3 flex flex-row items-start justify-between space-y-0 mb-1 bg-muted/50 rounded-t-md">
-            <CardTitle className="text-base font-semibold text-primary flex items-center gap-1.5">
-              <MapPin className="h-4 w-4 flex-shrink-0" />
-              {selectedFeatureInfo.feature.name}
-            </CardTitle>
-            <Button variant="ghost" size="sm" className="h-6 w-6 p-0 text-muted-foreground hover:text-foreground" onClick={() => setSelectedFeatureInfo(null)} aria-label="Close info box">
-                <XIcon className="h-3.5 w-3.5" />
-            </Button>
-          </CardHeader>
-          <CardContent className="p-3 text-xs space-y-1">
-            <p className="text-muted-foreground">Type: {selectedFeatureInfo.feature.type}</p>
-            {selectedFeatureInfo.feature.description && (
-                <p className="text-muted-foreground line-clamp-2">{selectedFeatureInfo.feature.description}</p>
-            )}
-             {selectedFeatureInfo.feature.population !== undefined && (
-              <p className="text-muted-foreground flex items-center text-xs">
-                <Users className="mr-1 h-3 w-3 flex-shrink-0" />
-                Pop: {Number(selectedFeatureInfo.feature.population).toLocaleString()}
-              </p>
-            )}
-          </CardContent>
+          <button 
+            onClick={() => setSelectedFeatureInfo(null)} 
+            className="absolute top-1 right-1 p-0.5 bg-pink-700 hover:bg-pink-800 rounded-full text-white"
+            aria-label="Close info box"
+          >
+            <XIcon className="h-3 w-3" />
+          </button>
+          <div className="text-sm font-semibold mb-1">DEBUG: {selectedFeatureInfo.feature.name}</div>
+          <div className="text-xs">Type: {selectedFeatureInfo.feature.type}</div>
+          <div className="text-xs">Coords: X: {selectedFeatureInfo.pageX}, Y: {selectedFeatureInfo.pageY}</div>
+          {selectedFeatureInfo.feature.description && <p className="text-xs mt-1 line-clamp-2">{selectedFeatureInfo.feature.description}</p>}
           {selectedFeatureInfo.feature.link && (
-            <CardFooter className="p-3 pt-2 mt-1 border-t border-border">
-                <Button asChild variant="outline" size="sm" className="w-full text-accent border-accent hover:bg-accent/10 hover:text-accent-foreground text-xs h-7 justify-start p-1.5">
-                  <Link href={selectedFeatureInfo.feature.link} target={selectedFeatureInfo.feature.link.startsWith('http') ? '_blank' : '_self'} rel="noopener noreferrer">
-                    Learn More <ExternalLink className="ml-1 h-3 w-3" />
-                  </Link>
-                </Button>
-            </CardFooter>
+            <Button asChild variant="link" size="sm" className="w-full text-yellow-300 hover:text-yellow-200 text-xs h-auto p-0 mt-2 justify-start">
+              <Link href={selectedFeatureInfo.feature.link} target={selectedFeatureInfo.feature.link.startsWith('http') ? '_blank' : '_self'} rel="noopener noreferrer">
+                Learn More <ExternalLink className="ml-1 h-3 w-3" />
+              </Link>
+            </Button>
           )}
         </div>
       )}
@@ -206,21 +195,24 @@ export function HomepageMap() {
         <ComposableMap
           projection="geoMercator"
           projectionConfig={{
-            scale: 4500,
-            center: [84.1240, 28.3949]
+            scale: 4500, // Adjust scale as needed
+            center: [84.1240, 28.3949] // Center of Nepal
           }}
           style={{ width: "100%", height: "100%" }}
           aria-label="Interactive map of Nepal showing provinces and key cities"
         >
           <ZoomableGroup center={[84.1240, 28.3949]} zoom={1} minZoom={0.7} maxZoom={10}>
             {mapData && provinceObjectKeyRef.current && mapData.objects[provinceObjectKeyRef.current] && (
-              <Geographies geography={mapData} object={mapData.objects[provinceObjectKeyRef.current]}>
+              <Geographies geography={mapData} /* Removed object prop, it's implicitly provinceObjectKeyRef.current */ >
                 {({ geographies }) =>
                   geographies.map(geo => {
                     const currentProperties = geo.properties as ProvinceFeatureProperties;
-                    const geoId = (currentProperties.ADM1_EN || currentProperties.DIST_EN || geo.rsmKey.toString()).toLowerCase().replace(/\s+/g, '_').replace(/_province$/, '');
-                    const details = provinceDetails[geoId] || {};
-                    const isSelected = selectedFeatureInfo?.feature.type === "Province" && selectedFeatureInfo.feature.id === geo.rsmKey;
+                    // Try to get a more specific name, fallback to generic
+                    const provinceName = currentProperties.DIST_EN || currentProperties.ADM1_EN || `Region ${geo.rsmKey.slice(-4)}`;
+                    const geoId = geo.rsmKey; // Use the unique key from react-simple-maps
+                    
+                    const details = provinceDetails[(provinceName).toLowerCase().replace(/\s+/g, '_').replace(/_province$/, '')] || {};
+                    const isSelected = selectedFeatureInfo?.feature.id === geoId && selectedFeatureInfo.feature.type === "Province";
                     
                     return (
                       <Geography
@@ -228,19 +220,16 @@ export function HomepageMap() {
                         geography={geo}
                         onClick={(event: React.MouseEvent<SVGPathElement>) => {
                           event.stopPropagation(); 
-                          const displayName = currentProperties.DIST_EN || currentProperties.ADM1_EN || `Region ${geo.rsmKey.slice(-4)}`;
-                          const linkName = currentProperties.DIST_EN ? displayName : (currentProperties.ADM1_EN || displayName);
-                          
                           const featureData: ExtendedProvinceMapData = {
-                            id: geo.rsmKey,
-                            name: displayName,
+                            id: geoId,
+                            name: provinceName,
                             type: "Province",
                             population: details.population,
                             description: details.description,
-                            link: details.link || `/districts?name=${encodeURIComponent(linkName)}`,
+                            link: details.link || `/districts?name=${encodeURIComponent(provinceName)}`,
                             properties: currentProperties,
                           };
-                          console.log("Geography Clicked:", displayName, "Event pageX:", event.pageX, "pageY:", event.pageY, "Feature Data:", featureData);
+                          console.log("Geography Clicked:", provinceName, "Event pageX:", event.pageX, "pageY:", event.pageY, "Feature Data:", featureData);
                           setSelectedFeatureInfo({
                             feature: featureData,
                             pageX: event.pageX,
@@ -248,7 +237,7 @@ export function HomepageMap() {
                           });
                         }}
                         className={cn(
-                          "stroke-gray-400 dark:stroke-gray-500 stroke-[0.5px] outline-none transition-all duration-150 ease-in-out cursor-pointer",
+                          "stroke-gray-500 dark:stroke-gray-600 stroke-[0.5px] outline-none transition-all duration-150 ease-in-out cursor-pointer",
                           isSelected
                               ? "fill-accent/70 dark:fill-accent/60 stroke-accent-foreground/70 dark:stroke-white/70 stroke-[1.5px]"
                               : "fill-white dark:fill-gray-700 hover:fill-gray-200 dark:hover:fill-gray-600"
@@ -264,8 +253,9 @@ export function HomepageMap() {
                 }
               </Geographies>
             )}
-             {mapData && provinceObjectKeyRef.current && mapData.objects[provinceObjectKeyRef.current] && (
-              <Geographies geography={mapData} object={mapData.objects[provinceObjectKeyRef.current]}>
+            {/* Province Labels */}
+            {mapData && provinceObjectKeyRef.current && mapData.objects[provinceObjectKeyRef.current] && (
+              <Geographies geography={mapData} /* Removed object prop */>
                 {({ geographies }) =>
                   geographies.map(geo => {
                     const properties = geo.properties as ProvinceFeatureProperties;
@@ -273,22 +263,26 @@ export function HomepageMap() {
                     const provinceLevelNameProp = properties.ADM1_EN || properties.NAME_1;
                     let displayName = districtNameProp || provinceLevelNameProp;
                     const centroid = (geo as any).centroid as [number, number] | undefined; 
+                    
                     const showLabelFor = ["Bagmati", "Gandaki", "Lumbini", "Koshi", "Sudurpashchim", "Madhesh", "Karnali"];
-                     if (!centroid || !displayName ) return null;
+                    if (!centroid || !displayName ) return null;
+
                     const isMajorProvinceLabel = provinceLevelNameProp && showLabelFor.some(p => provinceLevelNameProp.includes(p));
-                    if (!isMajorProvinceLabel) return null;
+                    if (!isMajorProvinceLabel) return null; // Only show labels for major provinces to reduce clutter
+
                     displayName = displayName.replace(" Province", "").replace(" District", "");
                     
                     let fontSizeClass = "text-[5px] md:text-[7px]";
-                    if (displayName === "Kathmandu" || displayName === "Pokhara" || displayName === "Lumbini") {
+                    if (displayName === "Kathmandu" || displayName === "Pokhara" || displayName === "Lumbini") { // Apply to city names if they were used as labels
                         fontSizeClass = "text-[6px] md:text-[8px]";
                     }
+
 
                     return (
                       <Marker key={`label-${geo.rsmKey}`} coordinates={centroid}>
                         <text
                           textAnchor="middle"
-                          y={properties.ADM1_EN === "Bagmati" ? 2 : (properties.ADM1_EN === "Madhesh" ? -1 : 0)}
+                          y={properties.ADM1_EN === "Bagmati" ? 2 : (properties.ADM1_EN === "Madhesh" ? -1 : 0)} // Custom y-offset for certain labels if needed
                           className={cn(fontSizeClass, "fill-foreground pointer-events-none select-none font-medium")}
                           style={{ paintOrder: "stroke", stroke: "hsl(var(--background))", strokeWidth: "0.6px", strokeLinecap: "butt", strokeLinejoin: "miter" }}
                         >
@@ -300,6 +294,7 @@ export function HomepageMap() {
                 }
               </Geographies>
             )}
+            {/* Major City Markers */}
             {majorCities.map(city => {
               const cityDetailsForInfo = cityDetails[city.id.toLowerCase()] || {};
               const isSelected = selectedFeatureInfo?.feature.type === "City" && selectedFeatureInfo.feature.id === city.id;
@@ -325,7 +320,7 @@ export function HomepageMap() {
                   }}
                 >
                   <circle
-                    r={isSelected ? 5 : 3.5} 
+                    r={isSelected ? 6 : 4} 
                     className={cn(
                       "transition-all duration-150 ease-in-out cursor-pointer",
                       isSelected
