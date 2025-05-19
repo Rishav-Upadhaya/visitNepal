@@ -7,7 +7,7 @@ import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { collection, getDocs, type DocumentData } from 'firebase/firestore';
-import { MapPin, Users, InfoIcon, ExternalLink, XIcon } from 'lucide-react';
+import { InfoIcon, ExternalLink, XIcon, Users, MapPinIcon as InfoBoxMapPin } from 'lucide-react'; // Renamed MapPin to InfoBoxMapPin to avoid conflict
 import Link from 'next/link';
 import * as React from 'react';
 import {
@@ -20,7 +20,7 @@ import {
 } from 'react-simple-maps';
 import { cn } from "@/lib/utils";
 
-const NEPAL_GEO_URL = "/data/nepal-provinces-topo.json"; // Ensure this TopoJSON is simplified
+const NEPAL_GEO_URL = "/data/nepal-provinces-topo.json";
 
 interface BaseMapFeature {
   id: string;
@@ -80,16 +80,15 @@ export function HomepageMap() {
         
         console.log("HomepageMap: TopoJSON fetched. Parsed data sample:", JSON.stringify(topoJsonData, null, 2).substring(0, 500));
 
-
         if (typeof topoJsonData !== 'object' || topoJsonData === null || !topoJsonData.objects || Object.keys(topoJsonData.objects).length === 0) {
-          setFetchError("Invalid TopoJSON structure: 'objects' property is missing or empty. Check public/data/nepal-provinces-topo.json");
+          setFetchError("Invalid TopoJSON structure: 'objects' property is missing or empty. Check public/data/nepal-provinces-topo.json. It should be a TopoJSON, not GeoJSON FeatureCollection.");
           setIsLoading(false);
           return;
         }
         
         const firstKey = Object.keys(topoJsonData.objects)[0];
-        if (!firstKey || !topoJsonData.objects[firstKey] || !topoJsonData.objects[firstKey].geometries) {
-             setFetchError(`Invalid TopoJSON: Layer "${firstKey}" does not contain 'geometries'. Check file structure.`);
+        if (!firstKey || !topoJsonData.objects[firstKey] || !(topoJsonData.objects[firstKey].type === "GeometryCollection" && Array.isArray(topoJsonData.objects[firstKey].geometries))) {
+             setFetchError(`Invalid TopoJSON: Layer "${firstKey}" is not a GeometryCollection or does not contain 'geometries'. Check file structure.`);
              setIsLoading(false);
              return;
         }
@@ -118,10 +117,10 @@ export function HomepageMap() {
       } catch (error) {
         console.error("Error loading map data:", error);
         const errorMsg = error instanceof Error ? error.message : "An unknown error occurred while loading map data.";
-        setFetchError(errorMsg.includes("offline") || errorMsg.includes("Failed to get document") ? 
-            `Map data could not be loaded. Please check your internet connection and Firebase setup. (${errorMsg})` 
-            : errorMsg
-        );
+        const specificError = errorMsg.includes("offline") || errorMsg.includes("Failed to get document") ? 
+            `Map data could not be loaded. Please check your internet connection and Firebase setup/configuration. (${errorMsg})` 
+            : errorMsg;
+        setFetchError(specificError);
       } finally {
         setIsLoading(false);
       }
@@ -130,28 +129,29 @@ export function HomepageMap() {
   }, []);
 
   const handleMapClick = React.useCallback((event: React.MouseEvent<HTMLDivElement>) => {
-    // Close info box if click is directly on map container and not on a feature
     if (event.target === event.currentTarget) {
         setSelectedFeatureInfo(null);
     }
   }, []);
   
   React.useEffect(() => {
-    console.log("HomepageMap: selectedFeatureInfo updated:", selectedFeatureInfo);
+    if (selectedFeatureInfo) {
+        console.log("HomepageMap: selectedFeatureInfo updated:", selectedFeatureInfo);
+    }
   }, [selectedFeatureInfo]);
 
 
   if (isLoading) {
     return (
-      <div className="aspect-[16/9] w-full bg-muted/30 rounded-lg flex items-center justify-center">
+      <div className="aspect-[16/9] w-full bg-green-100 dark:bg-green-900/20 rounded-lg flex items-center justify-center">
         <Skeleton className="h-full w-full" />
          <p className="absolute text-primary font-semibold">Loading Interactive Map of Nepal...</p>
       </div>
     );
   }
   
-  if (fetchError || !mapData || !provinceObjectKeyRef.current || !mapData.objects[provinceObjectKeyRef.current]) {
-    console.error("HomepageMap: Rendering error component. fetchError:", fetchError, "mapData valid:", !!mapData, "provinceObjectKey valid:", !!provinceObjectKeyRef.current);
+  if (fetchError || !mapData || !provinceObjectKeyRef.current || !mapData.objects[provinceObjectKef.current]) {
+    console.error("HomepageMap: Rendering error component. fetchError:", fetchError, "mapData valid:", !!mapData, "provinceObjectKey valid:", !!provinceObjectKeyRef.current, "mapData.objects content:", mapData ? mapData.objects : 'N/A');
     return (
       <div className="aspect-[16/9] w-full bg-red-100 dark:bg-red-900/30 rounded-lg flex flex-col items-center justify-center text-red-700 dark:text-red-300 p-4 text-center">
          <InfoIcon className="h-10 w-10 mb-2" />
@@ -165,21 +165,21 @@ export function HomepageMap() {
     <div 
       ref={mapContainerRef}
       className="relative aspect-[16/9] w-full bg-green-100 dark:bg-green-900/20 rounded-lg shadow-lg overflow-hidden border border-primary/10"
-      onClick={handleMapClick} // Handle clicks on the map container to close info box
+      onClick={handleMapClick}
     >
       {selectedFeatureInfo && selectedFeatureInfo.feature && (
          <Card 
-          className="fixed p-0 w-64 shadow-xl border-border bg-background text-foreground z-[1001] rounded-md transition-all duration-200 ease-out"
+          className="fixed p-0 w-64 shadow-xl border-border bg-background text-foreground z-[60] rounded-md transition-all duration-200 ease-out"
           style={{ 
             left: `${selectedFeatureInfo.pageX + 15}px`, 
             top: `${selectedFeatureInfo.pageY + 15}px`,
-            transform: selectedFeatureInfo.pageX > window.innerWidth - 300 ? 'translateX(-100%) translateY(-15px)' : 'translateY(-15px)', // Adjust if too close to edge
+            transform: selectedFeatureInfo.pageX > window.innerWidth - 300 ? 'translateX(calc(-100% - 30px))' : 'none', // Adjust if too close to right edge
           }}
-          onClick={(e) => e.stopPropagation()} // Prevent map click when clicking inside info box
+          onClick={(e) => e.stopPropagation()} 
          >
           <CardHeader className="p-3 flex flex-row items-center justify-between space-y-0">
             <CardTitle className="text-sm font-medium text-primary flex items-center">
-              <MapPin className="mr-1.5 h-4 w-4 flex-shrink-0 text-accent" />
+              <InfoBoxMapPin className="mr-1.5 h-4 w-4 flex-shrink-0 text-accent" />
               {selectedFeatureInfo.feature.name}
             </CardTitle>
              <Button variant="ghost" size="sm" className="h-6 w-6 p-0 text-muted-foreground hover:text-foreground" onClick={() => setSelectedFeatureInfo(null)} aria-label="Close info box">
@@ -228,13 +228,14 @@ export function HomepageMap() {
                   const provinceName = properties.ADM1_EN || properties.NAME_1 || `province_${properties.OBJECTID}`;
                   const geoId = provinceName.toLowerCase().replace(/\s+/g, '_').replace(' province','');
                   const details = provinceDetails[geoId] || {};
+                  const isSelected = selectedFeatureInfo?.feature.id === geoId && selectedFeatureInfo.feature.type === "Province";
 
                   return (
                     <Geography
                       key={geo.rsmKey}
                       geography={geo}
                       onClick={(event: React.MouseEvent<SVGPathElement>) => {
-                        event.stopPropagation(); // Prevent map click handler
+                        event.stopPropagation(); 
                         setSelectedFeatureInfo({
                           feature: {
                             id: geoId,
@@ -250,10 +251,10 @@ export function HomepageMap() {
                         });
                       }}
                       className={cn(
-                        "stroke-gray-400 dark:stroke-gray-600 stroke-[0.5px] outline-none transition-all duration-150 ease-in-out cursor-pointer",
-                        selectedFeatureInfo?.feature.id === geoId && selectedFeatureInfo.feature.type === "Province" 
-                            ? "fill-accent/50 stroke-accent-foreground stroke-[1.5px]" 
-                            : "fill-gray-100 dark:fill-gray-800 hover:fill-accent/30 dark:hover:fill-accent/40"
+                        "stroke-gray-500 dark:stroke-gray-600 stroke-[0.5px] outline-none transition-all duration-150 ease-in-out cursor-pointer",
+                        isSelected 
+                            ? "fill-accent/70 stroke-accent-foreground stroke-[1.5px]" 
+                            : "fill-gray-50 dark:fill-gray-800 hover:fill-accent/40 dark:hover:fill-accent/50"
                       )}
                       style={{
                         default: { outline: 'none' },
@@ -266,7 +267,6 @@ export function HomepageMap() {
               }
             </Geographies>
           )}
-           {/* Province Labels */}
           {mapData && provinceObjectKeyRef.current && mapData.objects[provinceObjectKeyRef.current] && (
              <Geographies geography={mapData} object={mapData.objects[provinceObjectKeyRef.current]}>
               {({ geographies }) =>
@@ -282,8 +282,8 @@ export function HomepageMap() {
                     <Marker key={`label-${geo.rsmKey}`} coordinates={centroid}>
                       <text
                         textAnchor="middle"
-                        y={properties.NAME_1 === "Bagmati" ? 2 : 0} // Slight adjustment for Bagmati if needed
-                        className="text-[5px] md:text-[6px] fill-foreground/70 dark:fill-foreground/50 pointer-events-none select-none font-medium"
+                        y={properties.NAME_1 === "Bagmati" ? 2 : 0} 
+                        className="text-[5px] md:text-[6px] fill-gray-700 dark:fill-gray-300 pointer-events-none select-none font-medium"
                         style={{ paintOrder: "stroke", stroke: "hsl(var(--background))", strokeWidth: "0.75px", strokeLinecap: "butt", strokeLinejoin: "miter" }}
                       >
                         {provinceName.replace(" Province", "")}
@@ -294,7 +294,6 @@ export function HomepageMap() {
               }
             </Geographies>
           )}
-          {/* Key City Markers */}
           {majorCities.map(city => {
             const details = cityDetails[city.id.toLowerCase()] || {};
             const isSelected = selectedFeatureInfo?.feature.id === city.id && selectedFeatureInfo.feature.type === "City";
@@ -303,7 +302,7 @@ export function HomepageMap() {
                 key={city.id}
                 coordinates={city.coordinates}
                  onClick={(event: React.MouseEvent<SVGGElement>) => {
-                    event.stopPropagation(); // Prevent map click handler
+                    event.stopPropagation(); 
                     setSelectedFeatureInfo({
                         feature: {
                             ...city,
@@ -316,15 +315,13 @@ export function HomepageMap() {
                     });
                 }}
               >
-                <g
+                <circle
+                  r={isSelected ? 4 : 3} // Slightly larger when selected
                   className={cn(
-                    "transition-all duration-150 ease-in-out transform cursor-pointer",
-                    isSelected ? "text-accent scale-125" : "text-primary animate-pulse hover:text-accent hover:scale-110"
+                    "transition-all duration-150 ease-in-out cursor-pointer",
+                    isSelected ? "fill-accent stroke-accent-foreground stroke-[1.5px]" : "fill-primary stroke-primary-foreground stroke-1 hover:fill-accent animate-pulse"
                   )}
-                >
-                  <MapPin className="w-3 h-3 md:w-4 md:h-4" strokeWidth={isSelected ? 2.5 : 2}/>
-                </g>
-                {/* <title>{city.name}</title>  Using info box instead */}
+                />
               </Marker>
             );
           })}
