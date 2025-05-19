@@ -15,7 +15,7 @@ import { useEffect, useState, useRef, useCallback } from 'react';
 import { db } from '@/lib/firebase'; 
 import { collection, getDocs, type DocumentData } from 'firebase/firestore';
 import { useRouter } from 'next/navigation';
-import { Loader2, InfoIcon, ExternalLink, XIcon, LocateFixed } from 'lucide-react';
+import { Loader2, InfoIcon, ExternalLink, XIcon } from 'lucide-react';
 import type { DistrictProperties, GeoJSON as LocalGeoJSON } from '@/types';
 import { Button } from '@/components/ui/button';
 
@@ -26,13 +26,6 @@ interface ClickedDistrictInfo {
   learnMoreUrl: string;
   x: number; // pageX
   y: number; // pageY
-}
-
-// Information for the user's geolocated position
-interface UserLocationInfo {
-  lat: number;
-  lng: number;
-  name: string; // Reverse-geocoded name
 }
 
 // Helper component to adjust map view if needed
@@ -47,11 +40,11 @@ const ChangeView = ({ center, zoom }: { center: LatLngExpression; zoom: number }
 export function InteractiveDistrictMap() {
   const [districtFeatureCollection, setDistrictFeatureCollection] = useState<LocalGeoJSON.FeatureCollection<LocalGeoJSON.Polygon | LocalGeoJSON.MultiPolygon, DistrictProperties> | null>(null);
   const [clickedDistrictInfo, setClickedDistrictInfo] = useState<ClickedDistrictInfo | null>(null);
-  const [userLocation, setUserLocation] = useState<UserLocationInfo | null>(null);
+  // User location state and related logic removed
   const [loading, setLoading] = useState(true);
   const [mapError, setMapError] = useState<string | null>(null);
   const router = useRouter();
-  const mapRef = useRef<L.Map | null>(null); // To control map instance
+  const mapRef = useRef<L.Map | null>(null); 
 
   // Fetch district data from Firestore
   useEffect(() => {
@@ -61,14 +54,15 @@ export function InteractiveDistrictMap() {
       try {
         const querySnapshot = await getDocs(collection(db, 'districts'));
         if (querySnapshot.empty) {
-          setMapError("No district data found in Firestore 'districts' collection. Please ensure data is populated.");
+          setMapError("No district data found. Please ensure the 'districts' collection in Firestore is populated with GeoJSON features.");
           setDistrictFeatureCollection(null);
           setLoading(false);
           return;
         }
         
         const features: LocalGeoJSON.Feature<LocalGeoJSON.Polygon | LocalGeoJSON.MultiPolygon, DistrictProperties>[] = querySnapshot.docs.map(doc => {
-          const data = doc.data() as Partial<DistrictProperties & { geometry: LocalGeoJSON.Polygon | LocalGeoJSON.MultiPolygon }>;
+          const data = doc.data();
+          // Ensure critical fields exist
           if (!data.geometry || !data.name || !data.learnMoreUrl) {
             console.warn(`Skipping district document ${doc.id} due to missing critical fields (name, learnMoreUrl, or geometry).`);
             return null; 
@@ -80,13 +74,13 @@ export function InteractiveDistrictMap() {
               learnMoreUrl: data.learnMoreUrl,
               description: data.description || `Learn more about ${data.name}.`,
             },
-            geometry: data.geometry,
-            id: doc.id,
+            geometry: data.geometry as LocalGeoJSON.Polygon | LocalGeoJSON.MultiPolygon, // Cast geometry
+            id: doc.id, // Use Firestore document ID as feature ID
           };
         }).filter(feature => feature !== null) as LocalGeoJSON.Feature<LocalGeoJSON.Polygon | LocalGeoJSON.MultiPolygon, DistrictProperties>[];
 
         if (features.length === 0) {
-          setMapError("No valid district features could be constructed. Check Firestore data (collection 'districts') and console warnings.");
+          setMapError("No valid district features could be constructed. Check Firestore data and console warnings.");
           setDistrictFeatureCollection(null);
         } else {
            setDistrictFeatureCollection({
@@ -104,40 +98,7 @@ export function InteractiveDistrictMap() {
     };
     fetchDistrictsData();
   }, []);
-
-  // Optional: Get user's geolocation
-  const locateUser = useCallback(() => {
-    if (typeof window !== 'undefined' && navigator.geolocation) {
-      navigator.geolocation.getCurrentPosition(
-        (position) => {
-          const { latitude, longitude } = position.coords;
-          // Placeholder - implement reverse geocoding for real name if needed
-          const placeName = "Your Current Location"; 
-          setUserLocation({ lat: latitude, lng: longitude, name: placeName });
-          if (mapRef.current) {
-            mapRef.current.flyTo([latitude, longitude], 13); // Zoom to user's location
-          }
-          // Display info for user's location
-          setClickedDistrictInfo({
-            name: placeName,
-            description: "This is your estimated current location. Explore nearby districts!",
-            learnMoreUrl: "", // No specific "learn more" for this generic location
-            x: window.innerWidth / 2, // Center roughly if needed
-            y: window.innerHeight / 2,
-          });
-        },
-        (err) => {
-          console.warn(`Geolocation permission denied or error: ${err.message}`);
-          alert(`Could not get your location: ${err.message}`);
-        },
-        { timeout: 10000, enableHighAccuracy: true }
-      );
-    } else {
-      alert("Geolocation is not supported by your browser.");
-    }
-  }, []);
   
-
   const onEachFeature = useCallback((feature: LocalGeoJSON.Feature<LocalGeoJSON.Polygon | LocalGeoJSON.MultiPolygon, DistrictProperties>, layer: Layer) => {
     const defaultStyle: PathOptions = {
       fillColor: 'hsl(var(--primary-foreground))', 
@@ -157,13 +118,13 @@ export function InteractiveDistrictMap() {
     layer.on({
       mouseover: (e: LeafletMouseEvent) => {
         (e.target as L.Path).setStyle(hoverStyle);
-        if (L.Browser.mobile) return; // Do not show hover tooltip on mobile, rely on click
+        if (L.Browser.mobile) return; 
       },
       mouseout: (e: LeafletMouseEvent) => {
         (e.target as L.Path).setStyle(defaultStyle);
       },
       click: (e: LeafletMouseEvent) => {
-        L.DomEvent.stopPropagation(e); 
+        L.DomEvent.stopPropagation(e); // Important to prevent map click from closing it immediately
         const properties = feature.properties;
         setClickedDistrictInfo({
           name: properties.name,
@@ -174,7 +135,7 @@ export function InteractiveDistrictMap() {
         });
       },
     });
-  }, []); 
+  }, [router]); // Added router to dependency array as it's used in click handler
 
   const geoJsonStyle = (): PathOptions => ({ 
     fillColor: 'hsl(var(--primary-foreground))',
@@ -207,7 +168,7 @@ export function InteractiveDistrictMap() {
   }
 
   return (
-    <div className="h-screen w-screen_fixed_donot_change_this relative">
+    <div className="h-screen w-screen_fixed_donot_change_this relative"> {/* Ensure this div takes full screen */}
       <MapContainer
         center={initialCenter}
         zoom={initialZoom}
@@ -215,7 +176,7 @@ export function InteractiveDistrictMap() {
         style={{ height: '100%', width: '100%' }}
         className="bg-muted"
         whenCreated={mapInstance => { mapRef.current = mapInstance; }}
-        onClick={() => setClickedDistrictInfo(null)} 
+        onClick={() => setClickedDistrictInfo(null)} // Close info-box if map is clicked
       >
         <ChangeView center={initialCenter} zoom={initialZoom} />
         <TileLayer
@@ -224,27 +185,14 @@ export function InteractiveDistrictMap() {
         />
         {districtFeatureCollection && districtFeatureCollection.features.length > 0 && (
           <GeoJSON
-            key={JSON.stringify(districtFeatureCollection)} 
-            data={districtFeatureCollection as LocalGeoJSON.GeoJsonObject} 
+            key={JSON.stringify(districtFeatureCollection)} // Force re-render if data changes
+            data={districtFeatureCollection as LocalGeoJSON.GeoJsonObject} // Cast to GeoJsonObject
             style={geoJsonStyle}
             onEachFeature={onEachFeature}
           />
         )}
 
-        {userLocation && (
-          <Marker position={[userLocation.lat, userLocation.lng]}>
-            <Popup>
-              <div className="p-2 bg-background rounded-md shadow-lg border border-border">
-                <h3 className="font-semibold text-sm text-primary mb-1">
-                  {userLocation.name}
-                </h3>
-                <p className="text-xs text-muted-foreground">
-                  (Estimated)
-                </p>
-              </div>
-            </Popup>
-          </Marker>
-        )}
+        {/* User location marker removed */}
       </MapContainer>
 
       {/* Info-box for Clicked District */}
@@ -254,13 +202,16 @@ export function InteractiveDistrictMap() {
             position: 'fixed',
             left: `${clickedDistrictInfo.x + 15}px`, 
             top: `${clickedDistrictInfo.y + 15}px`,  
-            transform: clickedDistrictInfo.x > window.innerWidth - 270 ? 'translateX(-100%) translateX(-30px)' : 'none',
+            transform: clickedDistrictInfo.x > window.innerWidth - 270 ? 'translateX(-100%) translateX(-30px)' : 'none', // Adjust if too close to edge
           }}
-          className="p-4 bg-background text-foreground rounded-lg shadow-xl border border-border text-sm z-[1001] w-64 transition-all duration-150 ease-out"
-          onClick={(e) => e.stopPropagation()} 
+          className="p-4 bg-background text-foreground rounded-lg shadow-xl border border-border text-sm z-[1001] w-64 transition-opacity duration-200 ease-out"
+          // Removed direct onClick here to prevent self-closing when interacting with button inside
         >
           <button 
-            onClick={() => setClickedDistrictInfo(null)}
+            onClick={(e) => {
+                e.stopPropagation(); // Prevent map click handler
+                setClickedDistrictInfo(null);
+            }}
             className="absolute top-2 right-2 p-0.5 text-muted-foreground hover:text-foreground transition-colors"
             aria-label="Close info box"
           >
@@ -273,7 +224,8 @@ export function InteractiveDistrictMap() {
               variant="outline" 
               size="sm" 
               className="w-full text-accent border-accent hover:bg-accent/10 hover:text-accent-foreground text-xs py-1.5 h-auto mt-2"
-              onClick={() => {
+              onClick={(e) => {
+                e.stopPropagation(); // Prevent map click
                 router.push(clickedDistrictInfo.learnMoreUrl);
                 setClickedDistrictInfo(null); 
               }}
