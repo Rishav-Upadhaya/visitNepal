@@ -1,7 +1,8 @@
+
 import Image from 'next/image';
 import { Button } from '@/components/ui/button';
 import Link from 'next/link';
-import { ArrowRight, Map } from 'lucide-react'; // Replaced MapChart with Map
+import { ArrowRight, Map } from 'lucide-react';
 
 export function Hero() {
   return (
@@ -22,25 +23,26 @@ export function Hero() {
       </div>
 
       <div className="container mt-16 md:mt-24">
-        {/* Updated Interactive Map Section for 2D */}
-        <div className="relative aspect-[16/7] bg-muted/50 rounded-xl shadow-2xl overflow-hidden group p-8 flex flex-col items-center justify-center text-center border">
-           <Map className="h-16 w-16 text-primary mb-6 opacity-50" /> {/* Replaced MapChart with Map */}
-           <h2 className="text-3xl md:text-4xl font-bold text-primary">Interactive Map of Nepal</h2>
-           <p className="mt-3 text-muted-foreground max-w-xl">
-            (Coming Soon) Explore Nepal with our interactive map. Discover districts, landmarks, and points of interest for your travel and tours with clickable hotspots and detailed information.
-           </p>
-            <div className="mt-4 text-sm text-muted-foreground/70">
-                [ Interactive Map Component Placeholder ]
-            </div>
-             {/* Optional background image for visual context */}
+        <div className="relative aspect-[16/7] bg-muted/50 rounded-xl shadow-2xl overflow-hidden group p-4 md:p-8 flex flex-col items-center justify-center text-center border">
+           {/* Map Icon can be kept or removed depending on whether the placeholder image clearly shows a map */}
+           {/* <Map className="h-12 w-12 md:h-16 md:w-16 text-primary mb-4 md:mb-6 opacity-50" />  */}
+           <div className="absolute inset-0">
              <Image
-              src="https://picsum.photos/seed/nepalmap2d/1200/400"
-              alt="Stylized 2D map of Nepal highlighting key regions for tourism and travel planning" // Enhanced alt text
-              data-ai-hint="Nepal map background"
+              src="https://placehold.co/1200x525.png" // Aspect ratio closer to 16/7
+              alt="Map of Nepal showing its diverse geography and key regions for travel and tourism"
+              data-ai-hint="Nepal map geography"
               fill
-              className="object-cover opacity-10 group-hover:opacity-20 transition-opacity duration-500 -z-10"
-              priority // Keep priority if this is above the fold
+              className="object-contain" // Use 'contain' to ensure the whole map is visible
+              priority
             />
+           </div>
+           {/* Overlay text on top of the map image */}
+           <div className="relative z-10 p-4 bg-black/30 rounded-lg backdrop-blur-sm">
+             <h2 className="text-2xl md:text-3xl font-bold text-white drop-shadow-lg">Interactive Map of Nepal</h2>
+             <p className="mt-2 text-sm md:text-base text-white/90 max-w-xl drop-shadow-md">
+              (Coming Soon) Click to explore Nepal's districts, landmarks, and points of interest for your travel planning.
+             </p>
+           </div>
         </div>
       </div>
     </section>

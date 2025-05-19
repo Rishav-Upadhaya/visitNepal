@@ -27,7 +27,7 @@ const featuredDistrictsData: DistrictFeature[] = [
   {
     name: "Kathmandu",
     tagline: "The vibrant capital, rich in culture and history. Home to ancient temples and bustling markets. Plan your Kathmandu tour!",
-    image: "https://picsum.photos/seed/kathmandu_home/600/400",
+    image: "/images/discoverdistrict/ktm.png",
     imageHint: "Kathmandu city temple",
     alt: "Aerial view of Pashupatinath Temple complex in Kathmandu, a major attraction for Nepal tours.",
     attractions: ["Pashupatinath Temple", "Boudhanath Stupa", "Swayambhunath (Monkey Temple)", "Kathmandu Durbar Square"],
@@ -38,7 +38,7 @@ const featuredDistrictsData: DistrictFeature[] = [
   {
     name: "Pokhara",
     tagline: "A picturesque city, nestled by Phewa Lake, offering stunning Himalayan mountain views and adventure activities. Visit Pokhara on your Nepal travel.",
-    image: "https://picsum.photos/seed/pokhara_home/600/400",
+    image: "/images/discoverdistrict/pkr.png",
     imageHint: "Pokhara lake mountain",
     alt: "Colorful boats on Phewa Lake with the Annapurna mountain range in the background, Pokhara, Nepal.",
     attractions: ["Phewa Lake & Tal Barahi Temple", "World Peace Pagoda", "Sarangkot Viewpoint", "Devi's Fall"],
@@ -49,7 +49,7 @@ const featuredDistrictsData: DistrictFeature[] = [
   {
     name: "Chitwan",
     tagline: "Home to Chitwan National Park, a UNESCO site renowned for its diverse wildlife including rhinos and tigers. Explore Chitwan during your Nepal visit.",
-    image: "https://picsum.photos/seed/chitwan_home/600/400",
+    image: "/images/discoverdistrict/chitwan.png",
     imageHint: "Chitwan wildlife rhino",
     alt: "A one-horned rhinoceros wading through grasslands in Chitwan National Park, a highlight of Nepal wildlife tours.",
     attractions: ["Chitwan National Park", "Tharu Village", "Elephant Breeding Center"],
@@ -60,7 +60,7 @@ const featuredDistrictsData: DistrictFeature[] = [
   {
     name: "Lumbini",
     tagline: "The birthplace of Lord Buddha, a sacred pilgrimage site with monasteries and temples from around the world. Tour Lumbini, Nepal.",
-    image: "https://picsum.photos/seed/lumbini_home/600/400",
+    image: "/images/discoverdistrict/lumibni.png",
     imageHint: "Lumbini temple peace",
     alt: "The sacred garden and Maya Devi Temple in Lumbini, birthplace of Buddha, a key Nepal pilgrimage site.",
     attractions: ["Maya Devi Temple", "Ashoka Pillar", "World Peace Pagoda (Lumbini)", "International Monastic Zone"],
