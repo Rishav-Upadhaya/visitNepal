@@ -7,7 +7,7 @@ import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { collection, getDocs, type DocumentData } from 'firebase/firestore';
-import { InfoIcon, ExternalLink, XIcon, MapPin as InfoBoxMapPin, Users, Pin } from 'lucide-react';
+import { InfoIcon, ExternalLink, XIcon, MapPin, Users } from 'lucide-react'; // Removed InfoBoxMapPin
 import Link from 'next/link';
 import * as React from 'react';
 import {
@@ -24,8 +24,8 @@ const NEPAL_GEO_URL = "/data/nepal-provinces-topo.json"; // Ensure this file exi
 
 interface ProvinceFeatureProperties {
   NAME_1?: string;
-  ADM1_EN?: string;
-  DIST_EN?: string; // Added for flexibility if ADM1_EN is not present
+  ADM1_EN?: string; // Common property name for Province name in GADM data
+  DIST_EN?: string; 
   OBJECTID?: string | number;
   [key: string]: any;
 }
@@ -35,7 +35,7 @@ interface ExtendedProvinceMapData extends ProvinceMapData, ProvinceFeatureProper
 }
 
 interface ExtendedCityMapData extends LocalCityMapData {
-  // Inherits from LocalCityMapData, no new fields needed here unless specific for this map
+  // Inherits from LocalCityMapData
 }
 
 interface SelectedFeatureInfo {
@@ -70,7 +70,7 @@ export function HomepageMap() {
         if (!geoRes.ok) throw new Error(`Failed to fetch TopoJSON from ${NEPAL_GEO_URL}: ${geoRes.statusText}`);
         const topoJsonData: any = await geoRes.json();
         
-        console.log("HomepageMap: TopoJSON fetched successfully. Parsed data sample:", JSON.stringify(topoJsonData, null, 2).substring(0,1000));
+        console.log("HomepageMap: TopoJSON fetched successfully. Parsed data sample:", JSON.stringify(topoJsonData, null, 2).substring(0,500));
 
         if (typeof topoJsonData !== 'object' || topoJsonData === null || !topoJsonData.objects || Object.keys(topoJsonData.objects).length === 0) {
           setFetchError(`Invalid TopoJSON structure in ${NEPAL_GEO_URL}: 'objects' property is missing or empty. Ensure it's a valid TopoJSON, not GeoJSON FeatureCollection. Received: ${JSON.stringify(topoJsonData, null, 2).substring(0,500)}`);
@@ -109,9 +109,12 @@ export function HomepageMap() {
       } catch (error) {
         console.error("Error loading map data:", error);
         const errorMsg = error instanceof Error ? error.message : "An unknown error occurred while loading map data.";
-        const specificError = errorMsg.includes("offline") || errorMsg.includes("Failed to get document") ? 
-            `Map data could not be loaded. Please check your internet connection and Firebase setup/configuration. (${errorMsg})` 
-            : `Error fetching or parsing map data: ${errorMsg}`;
+        let specificError = `Error fetching or parsing map data: ${errorMsg}.`;
+        if (errorMsg.includes("offline") || errorMsg.includes("Failed to get document")) {
+            specificError = `Map data could not be loaded. Please check your internet connection and Firebase setup/configuration. (${errorMsg})`;
+        } else if (errorMsg.includes("Invalid TopoJSON")) {
+            specificError = errorMsg; // Use the specific TopoJSON error.
+        }
         setFetchError(specificError);
       } finally {
         setIsLoading(false);
@@ -120,6 +123,12 @@ export function HomepageMap() {
     fetchData();
   }, []);
 
+  React.useEffect(() => {
+    if (selectedFeatureInfo) {
+        console.log("HomepageMap: selectedFeatureInfo updated:", selectedFeatureInfo);
+    }
+  }, [selectedFeatureInfo]);
+
   const handleMapClick = React.useCallback((event: React.MouseEvent<HTMLDivElement>) => {
     // Close info box if clicking on the map container itself (background)
     if (event.target === event.currentTarget || (event.target as HTMLElement).closest('.composable-map-container') === event.currentTarget.querySelector('.composable-map-container')) {
@@ -127,12 +136,6 @@ export function HomepageMap() {
     }
   }, []);
   
-  React.useEffect(() => {
-    if (selectedFeatureInfo) {
-        console.log("HomepageMap: selectedFeatureInfo updated:", selectedFeatureInfo);
-    }
-  }, [selectedFeatureInfo]);
-
   if (isLoading) {
     return (
       <div className="aspect-[16/9] w-full bg-muted/10 dark:bg-muted/20 rounded-lg flex items-center justify-center">
@@ -145,7 +148,7 @@ export function HomepageMap() {
   if (fetchError || !mapData || !provinceObjectKeyRef.current || !mapData.objects[provinceObjectKeyRef.current]) {
     console.error("HomepageMap: Rendering error component. fetchError:", fetchError, "mapData valid:", !!mapData, "provinceObjectKey valid:", !!provinceObjectKeyRef.current, "mapData.objects content:", mapData ? mapData.objects : 'N/A');
     return (
-      <div className="aspect-[16/9] w-full bg-destructive/10 dark:bg-destructive/20 rounded-lg flex flex-col items-center justify-center text-destructive-foreground p-4 text-center">
+      <div className="aspect-[16/9] w-full bg-red-100 dark:bg-red-900/30 rounded-lg flex flex-col items-center justify-center text-red-700 dark:text-red-300 p-4 text-center">
          <InfoIcon className="h-10 w-10 mb-2" />
         <p className="font-semibold mb-1 text-lg">Map Data Error</p>
         <p className="text-xs">
@@ -158,7 +161,7 @@ export function HomepageMap() {
   return (
     <div 
       ref={mapContainerRef}
-      className="relative aspect-[16/9] w-full bg-muted/50 dark:bg-muted/70 rounded-lg shadow-lg overflow-hidden border border-border" // Changed to theme color
+      className="relative aspect-[16/9] w-full bg-green-100 dark:bg-green-900/30 rounded-lg shadow-lg overflow-hidden border border-border"
       onClick={handleMapClick} 
     >
       {selectedFeatureInfo && selectedFeatureInfo.feature && (
@@ -173,7 +176,7 @@ export function HomepageMap() {
          >
           <CardHeader className="p-3 flex flex-row items-center justify-between space-y-0 bg-muted/50 rounded-t-md">
             <CardTitle className="text-sm font-semibold text-primary flex items-center gap-1.5">
-              <InfoBoxMapPin className="h-4 w-4 flex-shrink-0 text-accent" />
+              <MapPin className="h-4 w-4 flex-shrink-0 text-accent" />
               {selectedFeatureInfo.feature.name}
             </CardTitle>
              <Button variant="ghost" size="sm" className="h-6 w-6 p-0 text-muted-foreground hover:text-foreground" onClick={() => setSelectedFeatureInfo(null)} aria-label="Close info box">
@@ -247,8 +250,8 @@ export function HomepageMap() {
                         className={cn(
                           "stroke-border stroke-[0.5px] outline-none transition-all duration-150 ease-in-out cursor-pointer",
                           isSelected 
-                              ? "fill-accent/70 stroke-accent-foreground/70 stroke-[1.5px]" 
-                              : "fill-card dark:fill-card hover:fill-accent/40 dark:hover:fill-accent/50"
+                              ? "fill-accent/70 stroke-accent-foreground/70 stroke-[1.5px]" // Selected style
+                              : "fill-card dark:fill-card hover:fill-accent/40 dark:hover:fill-accent/50" // Default + Hover style
                         )}
                         style={{
                           default: { outline: 'none' },
@@ -269,6 +272,7 @@ export function HomepageMap() {
                     const provinceName = properties.ADM1_EN || properties.NAME_1 || "";
                     const centroid = (geo as any).centroid as [number, number] | undefined; 
                     
+                    // Example: Only show labels for these provinces to avoid clutter
                     const showLabelFor = ["Bagmati", "Gandaki", "Lumbini", "Koshi", "Sudurpashchim", "Madhesh", "Karnali"]; 
                     if (!centroid || !provinceName || !showLabelFor.some(p => provinceName.includes(p))) return null;
 
@@ -276,7 +280,7 @@ export function HomepageMap() {
                       <Marker key={`label-${geo.rsmKey}`} coordinates={centroid}>
                         <text
                           textAnchor="middle"
-                          y={properties.NAME_1 === "Bagmati" ? 2 : (properties.NAME_1 === "Madhesh" ? -1 : 0)} 
+                          y={properties.NAME_1 === "Bagmati" ? 2 : (properties.NAME_1 === "Madhesh" ? -1 : 0)} // Slight Y offset for some labels
                           className="text-[5px] md:text-[7px] fill-foreground pointer-events-none select-none font-medium"
                           style={{ paintOrder: "stroke", stroke: "hsl(var(--background))", strokeWidth: "0.75px", strokeLinecap: "butt", strokeLinejoin: "miter" }}
                         >
@@ -291,7 +295,8 @@ export function HomepageMap() {
             {majorCities.map(city => {
               const details = cityDetails[city.id.toLowerCase()] || {};
               const isSelected = selectedFeatureInfo?.feature.id === city.id && selectedFeatureInfo.feature.type === "City";
-              const isKathmandu = city.name === "Kathmandu";
+              const isKeyCity = city.name === "Kathmandu" || city.name === "Pokhara" || city.name === "Lumbini";
+              
               return (
                 <Marker
                   key={city.id}
@@ -310,19 +315,20 @@ export function HomepageMap() {
                       });
                   }}
                 >
-                  <circle
-                    r={isSelected ? 4.5 : 3.5} 
-                    className={cn(
-                      "transition-all duration-150 ease-in-out cursor-pointer",
-                      isSelected ? "fill-accent stroke-accent-foreground stroke-[1.5px]" : "fill-primary stroke-primary-foreground stroke-1 hover:fill-accent/80"
-                    )}
-                  />
+                  <g transform="translate(-6, -12)"> {/* Offset to center the pin */}
+                    <MapPin 
+                      className={cn(
+                        "transition-all duration-150 ease-in-out cursor-pointer w-4 h-4 md:w-5 md:h-5",
+                        isSelected ? "fill-accent text-accent-foreground" : "fill-primary text-primary-foreground hover:fill-accent/80 hover:text-accent-foreground"
+                      )}
+                    />
+                  </g>
                   <text
                     textAnchor="middle"
-                    y={-6} 
+                    y={isKeyCity ? -14 : -8} // Position text above the marker
                     className={cn(
                       "fill-foreground pointer-events-none select-none font-semibold",
-                      isKathmandu ? "text-[7px] md:text-[9px]" : "text-[5px] md:text-[6px]"
+                      isKeyCity ? "text-[7px] md:text-[9px]" : "text-[5px] md:text-[6px]"
                     )}
                     style={{ paintOrder: "stroke", stroke: "hsl(var(--background))", strokeWidth: "0.5px", strokeLinecap: "butt", strokeLinejoin: "miter" }}
                   >
@@ -340,3 +346,4 @@ export function HomepageMap() {
     </div>
   );
 }
+
