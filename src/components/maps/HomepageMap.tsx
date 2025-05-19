@@ -7,7 +7,7 @@ import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { collection, getDocs, type DocumentData } from 'firebase/firestore';
-import { InfoIcon, ExternalLink, XIcon, MapPin, Users } from 'lucide-react'; // Removed InfoBoxMapPin
+import { InfoIcon, ExternalLink, XIcon, Users, MapPin } from 'lucide-react';
 import Link from 'next/link';
 import * as React from 'react';
 import {
@@ -20,11 +20,11 @@ import {
 } from 'react-simple-maps';
 import { cn } from "@/lib/utils";
 
-const NEPAL_GEO_URL = "/data/nepal-provinces-topo.json"; // Ensure this file exists in public/data
+const NEPAL_GEO_URL = "/data/nepal-provinces-topo.json"; 
 
 interface ProvinceFeatureProperties {
   NAME_1?: string;
-  ADM1_EN?: string; // Common property name for Province name in GADM data
+  ADM1_EN?: string; 
   DIST_EN?: string; 
   OBJECTID?: string | number;
   [key: string]: any;
@@ -44,10 +44,11 @@ interface SelectedFeatureInfo {
   pageY: number;
 }
 
+// Ensure these cities have coordinates and a unique id
 const majorCities: ExtendedCityMapData[] = [
-  { id: "kathmandu", name: "Kathmandu", coordinates: [85.3240, 27.7172], type: "City", description: "Capital city, rich in culture.", link: "/districts?name=Kathmandu", highlight: true },
-  { id: "pokhara", name: "Pokhara", coordinates: [83.9856, 28.2096], type: "City", description: "City of lakes and mountain views.", link: "/districts?name=Kaski", highlight: true },
-  { id: "lumbini", name: "Lumbini", coordinates: [83.2756, 27.4816], type: "City", description: "Birthplace of Lord Buddha.", link: "/districts?name=Rupandehi", highlight: true },
+  { id: "kathmandu", name: "Kathmandu", coordinates: [85.3240, 27.7172], type: "City", description: "Capital city, rich in culture and ancient temples.", link: "/districts?name=Kathmandu", highlight: true },
+  { id: "pokhara", name: "Pokhara", coordinates: [83.9856, 28.2096], type: "City", description: "City of lakes, with stunning Himalayan views.", link: "/districts?name=Kaski", highlight: true },
+  { id: "lumbini", name: "Lumbini", coordinates: [83.2756, 27.4816], type: "City", description: "Birthplace of Lord Buddha, a sacred pilgrimage site.", link: "/districts?name=Rupandehi", highlight: true },
 ];
 
 export function HomepageMap() {
@@ -73,7 +74,7 @@ export function HomepageMap() {
         console.log("HomepageMap: TopoJSON fetched successfully. Parsed data sample:", JSON.stringify(topoJsonData, null, 2).substring(0,500));
 
         if (typeof topoJsonData !== 'object' || topoJsonData === null || !topoJsonData.objects || Object.keys(topoJsonData.objects).length === 0) {
-          setFetchError(`Invalid TopoJSON structure in ${NEPAL_GEO_URL}: 'objects' property is missing or empty. Ensure it's a valid TopoJSON, not GeoJSON FeatureCollection. Received: ${JSON.stringify(topoJsonData, null, 2).substring(0,500)}`);
+          setFetchError(`Invalid TopoJSON structure in ${NEPAL_GEO_URL}: 'objects' property is missing or empty. Ensure it's a valid TopoJSON. Received: ${JSON.stringify(topoJsonData, null, 2).substring(0,500)}`);
           setIsLoading(false);
           return;
         }
@@ -108,14 +109,15 @@ export function HomepageMap() {
 
       } catch (error) {
         console.error("Error loading map data:", error);
-        const errorMsg = error instanceof Error ? error.message : "An unknown error occurred while loading map data.";
-        let specificError = `Error fetching or parsing map data: ${errorMsg}.`;
+        let errorMsg = error instanceof Error ? error.message : "An unknown error occurred while loading map data.";
         if (errorMsg.includes("offline") || errorMsg.includes("Failed to get document")) {
-            specificError = `Map data could not be loaded. Please check your internet connection and Firebase setup/configuration. (${errorMsg})`;
+            errorMsg = `Map data could not be loaded. Please check your internet connection and Firebase setup/configuration. (${errorMsg})`;
         } else if (errorMsg.includes("Invalid TopoJSON")) {
-            specificError = errorMsg; // Use the specific TopoJSON error.
+            // Error message is already specific
+        } else {
+            errorMsg = `Error fetching or parsing map data: ${errorMsg}. Ensure public/data/nepal-provinces-topo.json is correct and Firebase data is accessible.`;
         }
-        setFetchError(specificError);
+        setFetchError(errorMsg);
       } finally {
         setIsLoading(false);
       }
@@ -130,7 +132,6 @@ export function HomepageMap() {
   }, [selectedFeatureInfo]);
 
   const handleMapClick = React.useCallback((event: React.MouseEvent<HTMLDivElement>) => {
-    // Close info box if clicking on the map container itself (background)
     if (event.target === event.currentTarget || (event.target as HTMLElement).closest('.composable-map-container') === event.currentTarget.querySelector('.composable-map-container')) {
         setSelectedFeatureInfo(null);
     }
@@ -197,7 +198,7 @@ export function HomepageMap() {
           </CardContent>
           {selectedFeatureInfo.feature.link && (
             <CardFooter className="p-3 pt-1">
-                <Button asChild variant="outline" size="xs" className="w-full text-accent border-accent hover:bg-accent/10 hover:text-accent">
+                <Button asChild variant="outline" size="xs" className="w-full text-accent border-accent hover:bg-accent/10 hover:text-accent-foreground">
                   <Link href={selectedFeatureInfo.feature.link} target="_blank" rel="noopener noreferrer">
                     Learn More <ExternalLink className="ml-1.5 h-3 w-3" />
                   </Link>
@@ -233,6 +234,7 @@ export function HomepageMap() {
                         geography={geo}
                         onClick={(event: React.MouseEvent<SVGPathElement>) => {
                           event.stopPropagation(); 
+                          console.log("Geography clicked:", properties, "Coords:", event.pageX, event.pageY);
                           setSelectedFeatureInfo({
                             feature: {
                               id: geoId,
@@ -248,10 +250,10 @@ export function HomepageMap() {
                           });
                         }}
                         className={cn(
-                          "stroke-border stroke-[0.5px] outline-none transition-all duration-150 ease-in-out cursor-pointer",
+                          "stroke-border dark:stroke-gray-600 stroke-[0.5px] outline-none transition-all duration-150 ease-in-out cursor-pointer",
                           isSelected 
-                              ? "fill-accent/70 stroke-accent-foreground/70 stroke-[1.5px]" // Selected style
-                              : "fill-card dark:fill-card hover:fill-accent/40 dark:hover:fill-accent/50" // Default + Hover style
+                              ? "fill-accent/70 dark:fill-accent/60 stroke-accent-foreground/70 dark:stroke-white/70 stroke-[1.5px]" 
+                              : "fill-card dark:fill-gray-700 hover:fill-accent/40 dark:hover:fill-accent/50" 
                         )}
                         style={{
                           default: { outline: 'none' },
@@ -272,7 +274,6 @@ export function HomepageMap() {
                     const provinceName = properties.ADM1_EN || properties.NAME_1 || "";
                     const centroid = (geo as any).centroid as [number, number] | undefined; 
                     
-                    // Example: Only show labels for these provinces to avoid clutter
                     const showLabelFor = ["Bagmati", "Gandaki", "Lumbini", "Koshi", "Sudurpashchim", "Madhesh", "Karnali"]; 
                     if (!centroid || !provinceName || !showLabelFor.some(p => provinceName.includes(p))) return null;
 
@@ -280,7 +281,7 @@ export function HomepageMap() {
                       <Marker key={`label-${geo.rsmKey}`} coordinates={centroid}>
                         <text
                           textAnchor="middle"
-                          y={properties.NAME_1 === "Bagmati" ? 2 : (properties.NAME_1 === "Madhesh" ? -1 : 0)} // Slight Y offset for some labels
+                          y={properties.NAME_1 === "Bagmati" ? 2 : (properties.NAME_1 === "Madhesh" ? -1 : 0)} 
                           className="text-[5px] md:text-[7px] fill-foreground pointer-events-none select-none font-medium"
                           style={{ paintOrder: "stroke", stroke: "hsl(var(--background))", strokeWidth: "0.75px", strokeLinecap: "butt", strokeLinejoin: "miter" }}
                         >
@@ -295,7 +296,6 @@ export function HomepageMap() {
             {majorCities.map(city => {
               const details = cityDetails[city.id.toLowerCase()] || {};
               const isSelected = selectedFeatureInfo?.feature.id === city.id && selectedFeatureInfo.feature.type === "City";
-              const isKeyCity = city.name === "Kathmandu" || city.name === "Pokhara" || city.name === "Lumbini";
               
               return (
                 <Marker
@@ -303,6 +303,7 @@ export function HomepageMap() {
                   coordinates={city.coordinates}
                   onClick={(event: React.MouseEvent<SVGGElement>) => {
                       event.stopPropagation(); 
+                      console.log("City marker clicked:", city.name, "Coords:", event.pageX, event.pageY);
                       setSelectedFeatureInfo({
                           feature: {
                               ...city,
@@ -315,20 +316,22 @@ export function HomepageMap() {
                       });
                   }}
                 >
-                  <g transform="translate(-6, -12)"> {/* Offset to center the pin */}
-                    <MapPin 
-                      className={cn(
-                        "transition-all duration-150 ease-in-out cursor-pointer w-4 h-4 md:w-5 md:h-5",
-                        isSelected ? "fill-accent text-accent-foreground" : "fill-primary text-primary-foreground hover:fill-accent/80 hover:text-accent-foreground"
-                      )}
-                    />
-                  </g>
+                  <circle
+                    r={isSelected ? 4 : 3} 
+                    className={cn(
+                      "transition-all duration-150 ease-in-out cursor-pointer",
+                      isSelected 
+                          ? "fill-accent stroke-accent-foreground" 
+                          : "fill-primary stroke-primary-foreground hover:fill-accent/80 hover:stroke-accent-foreground"
+                    )}
+                    strokeWidth={0.5}
+                  />
                   <text
                     textAnchor="middle"
-                    y={isKeyCity ? -14 : -8} // Position text above the marker
+                    y={-8} 
                     className={cn(
                       "fill-foreground pointer-events-none select-none font-semibold",
-                      isKeyCity ? "text-[7px] md:text-[9px]" : "text-[5px] md:text-[6px]"
+                      (city.name === "Kathmandu" || city.name === "Pokhara" || city.name === "Lumbini") ? "text-[7px] md:text-[9px]" : "text-[5px] md:text-[6px]"
                     )}
                     style={{ paintOrder: "stroke", stroke: "hsl(var(--background))", strokeWidth: "0.5px", strokeLinecap: "butt", strokeLinejoin: "miter" }}
                   >
