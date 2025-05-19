@@ -1,6 +1,8 @@
 
+"use client"; // Add this directive
+
 import { Button } from '@/components/ui/button';
-import { ArrowRight } from 'lucide-react';
+import { ArrowRight, Map } from 'lucide-react'; // Using Map icon
 import dynamic from 'next/dynamic';
 import Link from 'next/link';
 import { Skeleton } from '@/components/ui/skeleton'; // Import Skeleton for loading state
@@ -8,7 +10,7 @@ import { Skeleton } from '@/components/ui/skeleton'; // Import Skeleton for load
 // Lazy load the map component
 const HomepageMapWithNoSSR = dynamic(
   () => import('@/components/maps/HomepageMap').then((mod) => mod.HomepageMap),
-  { 
+  {
     ssr: false,
     loading: () => (
       <div className="aspect-[16/7] w-full bg-muted rounded-xl flex items-center justify-center">
