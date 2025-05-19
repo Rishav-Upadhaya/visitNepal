@@ -6,7 +6,6 @@ export interface ItineraryDay {
   location: string;
   activities: string[]; // Changed to array of strings
   hotelRecommendations?: string[]; // Added optional field
-  // REMOVED: estimatedDailyCost?: string;
 }
 
 export interface Itinerary {
@@ -82,3 +81,28 @@ export const budgetRanges = {
 
 export type BudgetRangeKey = keyof typeof budgetRanges;
 export type BudgetRangeLabel = typeof budgetRanges[BudgetRangeKey];
+
+// Types for Map Data
+export interface ProvinceData {
+  id: string; // e.g., "bagmati"
+  name: string; // e.g., "Bagmati Province"
+  population: number;
+  geoJSON: GeoJSON.Feature; // GeoJSON feature object for boundaries
+}
+
+export interface CityData {
+  id: string; // e.g., "kathmandu"
+  name: string; // e.g., "Kathmandu"
+  population: number;
+  coordinates: [number, number]; // [longitude, latitude]
+  provinceId: string; // To link to its province
+}
+
+// Simplified GeoJSON type for this use case
+// You might want to use a more complete GeoJSON type from a library like '@types/geojson' if needed
+export declare namespace GeoJSON {
+  export type GeoJsonTypes = "Point" | "MultiPoint" | "LineString" | "MultiLineString" | "Polygon" | "MultiPolygon" | "GeometryCollection" | "Feature" | "FeatureCollection";
+  export type Bbox = [number, number, number, number] | [number, number, number, number, number, number];
+  export interface Geometry { type: GeoJsonTypes; bbox?: Bbox; coordinates?: any; geometries?: Geometry[]; }
+  export interface Feature<G extends Geometry | null = Geometry, P = any> { type: "Feature"; geometry: G; id?: string | number; properties: P; bbox?: Bbox; }
+}
