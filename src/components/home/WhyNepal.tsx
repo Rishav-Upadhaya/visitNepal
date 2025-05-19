@@ -7,7 +7,7 @@ const categories = [
     title: "Rich Culture & Heritage",
     icon: Palette,
     description: "Discover ancient temples, vibrant festivals, and the warm hospitality of the Nepali people. Explore UNESCO World Heritage sites in Kathmandu Valley on your Nepal tour.",
-    image: "https://picsum.photos/seed/culture_nepal/600/400",
+    image: "https://placehold.co/600x400.png",
     hint: "Nepal temple festival",
     alt: "Colorful prayer flags fluttering at a historic temple in Kathmandu, Nepal, showcasing rich culture.", // Descriptive alt text
   },
@@ -15,7 +15,7 @@ const categories = [
     title: "Thrilling Adventures",
     icon: MountainSnow,
     description: "Embark on world-class treks like Everest Base Camp and Annapurna Circuit, or try rafting, paragliding, and bungee jumping amidst stunning landscapes during your Nepal travel.",
-    image: "https://picsum.photos/seed/adventure_nepal/600/400",
+    image: "https://placehold.co/600x400.png",
     hint: "Nepal trekking mountain",
     alt: "Trekkers approaching a snow-capped peak in the Himalayas, representing adventure travel in Nepal.", // Descriptive alt text
   },
@@ -23,7 +23,7 @@ const categories = [
     title: "Diverse Wildlife",
     icon: PawPrint, // Using PawPrint for wildlife
     description: "Explore national parks teeming with rare species like the Bengal tiger, one-horned rhinoceros, and elusive snow leopard. A paradise for nature lovers visiting Nepal.",
-    image: "https://picsum.photos/seed/wildlife_nepal/600/400",
+    image: "https://placehold.co/600x400.png",
     hint: "Nepal rhino tiger",
     alt: "A one-horned rhinoceros grazing in Chitwan National Park, highlighting Nepal's diverse wildlife.", // Descriptive alt text
   }
@@ -46,7 +46,7 @@ export function WhyNepal() {
               <CardHeader className="p-0">
                 <div className="aspect-video relative w-full">
                   <Image
-                    src={category.image}
+                    src={category.image} // Changed from generateImage(category.hint)
                     alt={category.alt} // Use the descriptive alt text
                     data-ai-hint={category.hint}
                     fill
