@@ -130,11 +130,12 @@ export interface DistrictProperties {
   learnMoreUrl: string;
   description?: string;
   // Add any other properties you expect from your Firestore/GeoJSON
-  [key: string]: any; 
+  [key: string]: any;
 }
 
 export interface DistrictFeature extends GeoJSON.Feature<GeoJSON.Polygon | GeoJSON.MultiPolygon, DistrictProperties> {}
-// Interface for the Firestore document structure for districts
+
+// Interface for the Firestore document structure for districts (used by InteractiveDistrictMap)
 export interface DistrictDocument {
   name: string;
   learnMoreUrl: string;
@@ -143,25 +144,25 @@ export interface DistrictDocument {
   id?: string; // Firestore document ID, optional here as it's usually the key
 }
 
-export interface ProvinceMapData { // For react-simple-maps, if still used elsewhere
-  id: string;
-  name: string;
+// For react-simple-maps on HomepageMap
+export interface ProvinceMapData { 
+  id: string; // Should match a key derived from TopoJSON properties (e.g., "bagmati_province")
+  name: string; // Display name (e.g., "Bagmati Province")
   population?: number;
-  [key: string]: any;
+  description?: string;
+  link?: string; // URL for "Learn More"
+  [key: string]: any; // Allow other properties from TopoJSON
 }
 
-export interface CityMapData { // For react-simple-maps markers, if still used elsewhere
-  id: string;
-  name: string;
-  population?: number;
-  coordinates: [number, number];
-  provinceId?: string;
+export interface CityMapData {
+  id: string; // e.g., "kathmandu"
+  name: string; // e.g., "Kathmandu"
+  coordinates: [number, number]; // [longitude, latitude]
   type: "City";
+  population?: number;
   description?: string;
   link?: string;
   highlight?: boolean;
-  iconUrl?: string;
+  iconUrl?: string; // Optional path to custom icon in Firebase Storage
 }
-    
-
     
