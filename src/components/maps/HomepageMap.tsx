@@ -7,7 +7,7 @@ import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { collection, getDocs, type DocumentData } from 'firebase/firestore';
-import { InfoIcon, ExternalLink, XIcon, Users, MapPin as InfoBoxMapPin } from 'lucide-react';
+import { InfoIcon, ExternalLink, XIcon, MapPin as InfoBoxMapPin, Users, Pin } from 'lucide-react'; // Using Pin for city markers
 import Link from 'next/link';
 import * as React from 'react';
 import {
@@ -80,7 +80,6 @@ export function HomepageMap() {
         
         console.log("HomepageMap: TopoJSON fetched successfully. Parsed data:", JSON.stringify(topoJsonData, null, 2).substring(0,1000));
 
-
         if (typeof topoJsonData !== 'object' || topoJsonData === null || !topoJsonData.objects || Object.keys(topoJsonData.objects).length === 0) {
           setFetchError("Invalid TopoJSON structure: 'objects' property is missing or empty. Check public/data/nepal-provinces-topo.json. It should be a TopoJSON, not GeoJSON FeatureCollection.");
           setIsLoading(false);
@@ -96,7 +95,6 @@ export function HomepageMap() {
         provinceObjectKeyRef.current = firstKey;
         setMapData(topoJsonData);
 
-        // Fetch province populations/details
         const provincesSnapshot = await getDocs(collection(db, "nepal_provinces_data"));
         const provData: Record<string, Partial<ProvinceMapData>> = {};
         provincesSnapshot.forEach((doc: DocumentData) => {
@@ -107,7 +105,6 @@ export function HomepageMap() {
         setProvinceDetails(provData);
         console.log("HomepageMap: Fetched province details:", provData);
 
-        // Fetch city populations/details
         const citiesSnapshot = await getDocs(collection(db, "nepal_major_cities_data"));
         const cityDataColl: Record<string, Partial<CityMapData>> = {};
         citiesSnapshot.forEach((doc: DocumentData) => {
@@ -132,7 +129,6 @@ export function HomepageMap() {
   }, []);
 
   const handleMapClick = React.useCallback((event: React.MouseEvent<HTMLDivElement>) => {
-    // Only close info box if the click is on the map container itself, not its children (like the info box)
     if (event.target === event.currentTarget || event.target === mapContainerRef.current?.querySelector('.composable-map-container')) {
         setSelectedFeatureInfo(null);
     }
@@ -143,7 +139,6 @@ export function HomepageMap() {
         console.log("HomepageMap: selectedFeatureInfo updated:", selectedFeatureInfo);
     }
   }, [selectedFeatureInfo]);
-
 
   if (isLoading) {
     return (
@@ -160,7 +155,13 @@ export function HomepageMap() {
       <div className="aspect-[16/9] w-full bg-red-100 dark:bg-red-900/30 rounded-lg flex flex-col items-center justify-center text-red-700 dark:text-red-300 p-4 text-center">
          <InfoIcon className="h-10 w-10 mb-2" />
         <p className="font-semibold mb-1 text-lg">Map Data Error</p>
-        <p className="text-xs">{fetchError || "Could not load or parse map data. Ensure public/data/nepal-provinces-topo.json is correct and Firebase data is accessible."} {fetchError?.includes("offline") || fetchError?.includes("Failed to get document") ? "Please also check your Firebase config and internet connection." : ""}</p>
+        <p className="text-xs">
+          {fetchError?.includes("offline") || fetchError?.includes("Failed to get document") 
+            ? "Map data could not be loaded. Please check your Firebase config and internet connection. " 
+            : "Could not load or parse map data. "
+          } 
+          Ensure public/data/nepal-provinces-topo.json is correct and Firebase data is accessible.
+        </p>
       </div>
     );
   }
@@ -169,7 +170,7 @@ export function HomepageMap() {
     <div 
       ref={mapContainerRef}
       className="relative aspect-[16/9] w-full bg-lime-100 dark:bg-green-900/30 rounded-lg shadow-lg overflow-hidden border border-primary/20"
-      onClick={handleMapClick} // Click on the outer container closes the info box
+      onClick={handleMapClick} 
     >
       {selectedFeatureInfo && selectedFeatureInfo.feature && (
          <Card 
@@ -179,7 +180,7 @@ export function HomepageMap() {
             top: `${selectedFeatureInfo.pageY + 15}px`,
             transform: selectedFeatureInfo.pageX > (mapContainerRef.current ? mapContainerRef.current.offsetWidth - 300 : window.innerWidth - 300) ? 'translateX(calc(-100% - 30px))' : 'none',
           }}
-          onClick={(e) => e.stopPropagation()} // Prevent map click handler from closing this
+          onClick={(e) => e.stopPropagation()} 
          >
           <CardHeader className="p-3 flex flex-row items-start justify-between space-y-0 bg-muted/50 rounded-t-md">
             <CardTitle className="text-sm font-semibold text-primary flex items-center gap-1.5">
@@ -213,7 +214,7 @@ export function HomepageMap() {
           )}
         </Card>
       )}
-      <div className="composable-map-container h-full w-full"> {/* Added this wrapper for more specific click handling */}
+      <div className="composable-map-container h-full w-full">
         <ComposableMap
           projection="geoMercator"
           projectionConfig={{
@@ -240,7 +241,6 @@ export function HomepageMap() {
                         geography={geo}
                         onClick={(event: React.MouseEvent<SVGPathElement>) => {
                           event.stopPropagation(); 
-                          console.log("Geography clicked:", properties, "Event:", event.pageX, event.pageY);
                           setSelectedFeatureInfo({
                             feature: {
                               id: geoId,
@@ -278,10 +278,8 @@ export function HomepageMap() {
                   geographies.map(geo => {
                     const properties = geo.properties as ProvinceFeatureProperties;
                     const provinceName = properties.ADM1_EN || properties.NAME_1 || "";
-                    // Attempt to use centroid if available from react-simple-maps, otherwise fallback or skip
                     const centroid = (geo as any).centroid as [number, number] | undefined; 
                     
-                    // Filter which labels to show to prevent clutter
                     const showLabelFor = ["Bagmati", "Gandaki", "Lumbini", "Koshi", "Sudurpashchim"]; 
                     if (!centroid || !provinceName || !showLabelFor.some(p => provinceName.includes(p))) return null;
 
@@ -289,7 +287,7 @@ export function HomepageMap() {
                       <Marker key={`label-${geo.rsmKey}`} coordinates={centroid}>
                         <text
                           textAnchor="middle"
-                          y={properties.NAME_1 === "Bagmati" ? 2 : 0} // Small adjustment for Bagmati label if needed
+                          y={properties.NAME_1 === "Bagmati" ? 2 : 0} 
                           className="text-[5px] md:text-[7px] fill-gray-700 dark:fill-gray-300 pointer-events-none select-none font-medium"
                           style={{ paintOrder: "stroke", stroke: "hsl(var(--background))", strokeWidth: "0.75px", strokeLinecap: "butt", strokeLinejoin: "miter" }}
                         >
@@ -304,13 +302,13 @@ export function HomepageMap() {
             {majorCities.map(city => {
               const details = cityDetails[city.id.toLowerCase()] || {};
               const isSelected = selectedFeatureInfo?.feature.id === city.id && selectedFeatureInfo.feature.type === "City";
+              const isKathmandu = city.name === "Kathmandu";
               return (
                 <Marker
                   key={city.id}
                   coordinates={city.coordinates}
                   onClick={(event: React.MouseEvent<SVGGElement>) => {
                       event.stopPropagation(); 
-                      console.log("City marker clicked:", city, "Event:", event.pageX, event.pageY);
                       setSelectedFeatureInfo({
                           feature: {
                               ...city,
@@ -324,16 +322,19 @@ export function HomepageMap() {
                   }}
                 >
                   <circle
-                    r={isSelected ? 4.5 : 3.5} // Slightly larger when selected
+                    r={isSelected ? 4.5 : 3.5} 
                     className={cn(
                       "transition-all duration-150 ease-in-out cursor-pointer",
-                      isSelected ? "fill-accent stroke-accent-foreground stroke-[1.5px]" : "fill-primary stroke-primary-foreground stroke-1 hover:fill-accent animate-pulse"
+                      isSelected ? "fill-accent stroke-accent-foreground stroke-[1.5px]" : "fill-primary stroke-primary-foreground stroke-1 hover:fill-accent"
                     )}
                   />
                   <text
                     textAnchor="middle"
-                    y={-6} // Position label above the circle
-                    className="text-[5px] md:text-[6px] fill-gray-800 dark:fill-gray-200 pointer-events-none select-none font-semibold"
+                    y={-6} 
+                    className={cn(
+                      "fill-gray-800 dark:fill-gray-200 pointer-events-none select-none font-semibold",
+                      isKathmandu ? "text-[7px] md:text-[9px]" : "text-[5px] md:text-[6px]"
+                    )}
                     style={{ paintOrder: "stroke", stroke: "hsl(var(--background))", strokeWidth: "0.5px", strokeLinecap: "butt", strokeLinejoin: "miter" }}
                   >
                     {city.name}
