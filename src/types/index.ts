@@ -1,4 +1,3 @@
-
 // Contains shared types and constants for the application.
 
 export interface ItineraryDay {
@@ -82,20 +81,26 @@ export const budgetRanges = {
 export type BudgetRangeKey = keyof typeof budgetRanges;
 export type BudgetRangeLabel = typeof budgetRanges[BudgetRangeKey];
 
-// Types for Map Data
-export interface ProvinceData {
+// Types for OLD Map Data (react-simple-maps)
+export interface ProvinceMapData {
   id: string; // e.g., "bagmati"
   name: string; // e.g., "Bagmati Province"
-  population: number;
-  geoJSON: GeoJSON.Feature; // GeoJSON feature object for boundaries
+  population?: number;
+  // geoJSON: GeoJSON.Feature; // GeoJSON feature object for boundaries // This was for the old map
+  [key: string]: any; // Allow other properties
 }
 
-export interface CityData {
+export interface CityMapData {
   id: string; // e.g., "kathmandu"
   name: string; // e.g., "Kathmandu"
-  population: number;
+  population?: number;
   coordinates: [number, number]; // [longitude, latitude]
-  provinceId: string; // To link to its province
+  provinceId?: string; // To link to its province
+  type: "City"; // To distinguish from province in a combined list
+  description?: string;
+  link?: string;
+  highlight?: boolean;
+  iconUrl?: string;
 }
 
 // Simplified GeoJSON type for this use case
@@ -105,4 +110,9 @@ export declare namespace GeoJSON {
   export type Bbox = [number, number, number, number] | [number, number, number, number, number, number];
   export interface Geometry { type: GeoJsonTypes; bbox?: Bbox; coordinates?: any; geometries?: Geometry[]; }
   export interface Feature<G extends Geometry | null = Geometry, P = any> { type: "Feature"; geometry: G; id?: string | number; properties: P; bbox?: Bbox; }
+  export interface FeatureCollection<G extends Geometry | null = Geometry, P = any> { type: "FeatureCollection"; features: Array<Feature<G, P>>; bbox?: Bbox; }
+  export type Polygon = GeoJSON.Polygon; // For react-leaflet GeoJSON component
+  export type MultiPolygon = GeoJSON.MultiPolygon; // For react-leaflet GeoJSON component
+  export type GeoJsonObject = Feature | FeatureCollection | Geometry;
 }
+
