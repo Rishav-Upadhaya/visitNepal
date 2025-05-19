@@ -1,3 +1,4 @@
+
 // Contains shared types and constants for the application.
 
 export interface ItineraryDay {
@@ -81,38 +82,77 @@ export const budgetRanges = {
 export type BudgetRangeKey = keyof typeof budgetRanges;
 export type BudgetRangeLabel = typeof budgetRanges[BudgetRangeKey];
 
-// Types for OLD Map Data (react-simple-maps)
-export interface ProvinceMapData {
-  id: string; // e.g., "bagmati"
-  name: string; // e.g., "Bagmati Province"
-  population?: number;
-  // geoJSON: GeoJSON.Feature; // GeoJSON feature object for boundaries // This was for the old map
-  [key: string]: any; // Allow other properties
+// GeoJSON types, can be expanded or imported from @types/geojson if more detail is needed
+export declare namespace GeoJSON {
+  export type GeoJsonTypes = Geometry['type'] | 'Feature' | 'FeatureCollection';
+  export type Bbox = [number, number, number, number] | [number, number, number, number, number, number];
+
+  export type Position = number[]; // [longitude, latitude, ?altitude]
+
+  export interface Geometry {
+    type: "Point" | "MultiPoint" | "LineString" | "MultiLineString" | "Polygon" | "MultiPolygon" | "GeometryCollection";
+    bbox?: Bbox;
+    coordinates?: any; // Varies based on geometry type
+    geometries?: Geometry[]; // For GeometryCollection
+  }
+  export interface Point extends Geometry { type: "Point"; coordinates: Position; }
+  export interface MultiPoint extends Geometry { type: "MultiPoint"; coordinates: Position[];}
+  export interface LineString extends Geometry { type: "LineString"; coordinates: Position[]; }
+  export interface MultiLineString extends Geometry { type: "MultiLineString"; coordinates: Position[][]; }
+  export interface Polygon extends Geometry { type: "Polygon"; coordinates: Position[][]; }
+  export interface MultiPolygon extends Geometry { type: "MultiPolygon"; coordinates: Position[][][]; }
+  
+  export interface GeometryCollection extends Geometry {
+    type: "GeometryCollection";
+    geometries: Geometry[];
+  }
+
+  export interface Feature<G extends Geometry | null = Geometry, P = any> {
+    type: "Feature";
+    geometry: G;
+    id?: string | number;
+    properties: P;
+    bbox?: Bbox;
+  }
+
+  export interface FeatureCollection<G extends Geometry | null = Geometry, P = any> {
+    type: "FeatureCollection";
+    features: Array<Feature<G, P>>;
+    bbox?: Bbox;
+  }
+
+  export type GeoJsonObject = Geometry | Feature | FeatureCollection;
 }
 
-export interface CityMapData {
-  id: string; // e.g., "kathmandu"
-  name: string; // e.g., "Kathmandu"
+// Specific types for your map components
+export interface DistrictProperties {
+  name: string;
+  learnMoreUrl: string;
+  description?: string;
+  // Add any other properties you expect from your Firestore/GeoJSON
+  [key: string]: any; 
+}
+
+export interface DistrictFeature extends GeoJSON.Feature<GeoJSON.Polygon | GeoJSON.MultiPolygon, DistrictProperties> {}
+
+export interface ProvinceMapData { // For react-simple-maps, if still used elsewhere
+  id: string;
+  name: string;
   population?: number;
-  coordinates: [number, number]; // [longitude, latitude]
-  provinceId?: string; // To link to its province
-  type: "City"; // To distinguish from province in a combined list
+  [key: string]: any;
+}
+
+export interface CityMapData { // For react-simple-maps markers, if still used elsewhere
+  id: string;
+  name: string;
+  population?: number;
+  coordinates: [number, number];
+  provinceId?: string;
+  type: "City";
   description?: string;
   link?: string;
   highlight?: boolean;
   iconUrl?: string;
 }
 
-// Simplified GeoJSON type for this use case
-// You might want to use a more complete GeoJSON type from a library like '@types/geojson' if needed
-export declare namespace GeoJSON {
-  export type GeoJsonTypes = "Point" | "MultiPoint" | "LineString" | "MultiLineString" | "Polygon" | "MultiPolygon" | "GeometryCollection" | "Feature" | "FeatureCollection";
-  export type Bbox = [number, number, number, number] | [number, number, number, number, number, number];
-  export interface Geometry { type: GeoJsonTypes; bbox?: Bbox; coordinates?: any; geometries?: Geometry[]; }
-  export interface Feature<G extends Geometry | null = Geometry, P = any> { type: "Feature"; geometry: G; id?: string | number; properties: P; bbox?: Bbox; }
-  export interface FeatureCollection<G extends Geometry | null = Geometry, P = any> { type: "FeatureCollection"; features: Array<Feature<G, P>>; bbox?: Bbox; }
-  export type Polygon = GeoJSON.Polygon; // For react-leaflet GeoJSON component
-  export type MultiPolygon = GeoJSON.MultiPolygon; // For react-leaflet GeoJSON component
-  export type GeoJsonObject = Feature | FeatureCollection | Geometry;
-}
-
+    
