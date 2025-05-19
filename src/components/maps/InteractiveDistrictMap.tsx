@@ -16,7 +16,7 @@ import { db } from '@/lib/firebase';
 import { collection, getDocs, type DocumentData } from 'firebase/firestore';
 import { useRouter } from 'next/navigation';
 import { Loader2, InfoIcon, ExternalLink, XIcon, LocateFixed } from 'lucide-react';
-import type { DistrictDocument, DistrictProperties, GeoJSON as LocalGeoJSON } from '@/types';
+import type { DistrictProperties, GeoJSON as LocalGeoJSON } from '@/types';
 import { Button } from '@/components/ui/button';
 
 // Information for the click info-box
@@ -61,13 +61,14 @@ export function InteractiveDistrictMap() {
       try {
         const querySnapshot = await getDocs(collection(db, 'districts'));
         if (querySnapshot.empty) {
-          setMapError("No district data found in Firestore 'districts' collection.");
+          setMapError("No district data found in Firestore 'districts' collection. Please ensure data is populated.");
           setDistrictFeatureCollection(null);
+          setLoading(false);
           return;
         }
         
         const features: LocalGeoJSON.Feature<LocalGeoJSON.Polygon | LocalGeoJSON.MultiPolygon, DistrictProperties>[] = querySnapshot.docs.map(doc => {
-          const data = doc.data() as Partial<DistrictDocument>; // Cast to allow checking for fields
+          const data = doc.data() as Partial<DistrictProperties & { geometry: LocalGeoJSON.Polygon | LocalGeoJSON.MultiPolygon }>;
           if (!data.geometry || !data.name || !data.learnMoreUrl) {
             console.warn(`Skipping district document ${doc.id} due to missing critical fields (name, learnMoreUrl, or geometry).`);
             return null; 
@@ -77,9 +78,9 @@ export function InteractiveDistrictMap() {
             properties: {
               name: data.name,
               learnMoreUrl: data.learnMoreUrl,
-              description: data.description || 'Click "Learn More" for details.', // Default description
+              description: data.description || `Learn more about ${data.name}.`,
             },
-            geometry: data.geometry as LocalGeoJSON.Polygon | LocalGeoJSON.MultiPolygon, // Assert type after check
+            geometry: data.geometry,
             id: doc.id,
           };
         }).filter(feature => feature !== null) as LocalGeoJSON.Feature<LocalGeoJSON.Polygon | LocalGeoJSON.MultiPolygon, DistrictProperties>[];
@@ -87,16 +88,12 @@ export function InteractiveDistrictMap() {
         if (features.length === 0) {
           setMapError("No valid district features could be constructed. Check Firestore data (collection 'districts') and console warnings.");
           setDistrictFeatureCollection(null);
-          return;
+        } else {
+           setDistrictFeatureCollection({
+            type: "FeatureCollection",
+            features: features,
+          });
         }
-
-        const featureCollection: LocalGeoJSON.FeatureCollection<LocalGeoJSON.Polygon | LocalGeoJSON.MultiPolygon, DistrictProperties> = {
-          type: "FeatureCollection",
-          features: features,
-        };
-        
-        setDistrictFeatureCollection(featureCollection);
-
       } catch (err) {
         console.error("Error fetching district data from Firestore:", err);
         const errorMsg = err instanceof Error ? err.message : 'Unknown error';
@@ -120,12 +117,12 @@ export function InteractiveDistrictMap() {
           if (mapRef.current) {
             mapRef.current.flyTo([latitude, longitude], 13); // Zoom to user's location
           }
-          // Optionally, show an info-box for user's location
+          // Display info for user's location
           setClickedDistrictInfo({
             name: placeName,
-            description: "This is your estimated current location.",
-            learnMoreUrl: "", // No learn more for user location or link to help
-            x: window.innerWidth / 2, // Center info box roughly
+            description: "This is your estimated current location. Explore nearby districts!",
+            learnMoreUrl: "", // No specific "learn more" for this generic location
+            x: window.innerWidth / 2, // Center roughly if needed
             y: window.innerHeight / 2,
           });
         },
@@ -143,13 +140,13 @@ export function InteractiveDistrictMap() {
 
   const onEachFeature = useCallback((feature: LocalGeoJSON.Feature<LocalGeoJSON.Polygon | LocalGeoJSON.MultiPolygon, DistrictProperties>, layer: Layer) => {
     const defaultStyle: PathOptions = {
-      fillColor: 'hsl(var(--primary-foreground))', // Light fill from theme
+      fillColor: 'hsl(var(--primary-foreground))', 
       weight: 1,
       opacity: 1,
-      color: 'hsl(var(--border))', // Border color from theme
+      color: 'hsl(var(--border))', 
       fillOpacity: 0.4,
     };
-    const hoverStyle: PathOptions = { // Subtle hover for click affordance
+    const hoverStyle: PathOptions = { 
       fillOpacity: 0.6,
       weight: 2,
       color: 'hsl(var(--accent))'
@@ -160,12 +157,13 @@ export function InteractiveDistrictMap() {
     layer.on({
       mouseover: (e: LeafletMouseEvent) => {
         (e.target as L.Path).setStyle(hoverStyle);
+        if (L.Browser.mobile) return; // Do not show hover tooltip on mobile, rely on click
       },
       mouseout: (e: LeafletMouseEvent) => {
         (e.target as L.Path).setStyle(defaultStyle);
       },
       click: (e: LeafletMouseEvent) => {
-        L.DomEvent.stopPropagation(e); // Prevent map click handler from closing it immediately
+        L.DomEvent.stopPropagation(e); 
         const properties = feature.properties;
         setClickedDistrictInfo({
           name: properties.name,
@@ -176,9 +174,9 @@ export function InteractiveDistrictMap() {
         });
       },
     });
-  }, [router]); // router is a dependency if used in learnMoreUrl
+  }, []); 
 
-  const geoJsonStyle = (): PathOptions => ({ // Default style for GeoJSON layer
+  const geoJsonStyle = (): PathOptions => ({ 
     fillColor: 'hsl(var(--primary-foreground))',
     weight: 1,
     opacity: 1,
@@ -186,7 +184,7 @@ export function InteractiveDistrictMap() {
     fillOpacity: 0.4,
   });
   
-  const initialCenter: LatLngExpression = [28.3949, 84.1240]; // Center of Nepal
+  const initialCenter: LatLngExpression = [28.3949, 84.1240]; 
   const initialZoom = 7;
 
   if (loading) {
@@ -217,7 +215,7 @@ export function InteractiveDistrictMap() {
         style={{ height: '100%', width: '100%' }}
         className="bg-muted"
         whenCreated={mapInstance => { mapRef.current = mapInstance; }}
-        onClick={() => setClickedDistrictInfo(null)} // Click on map closes info box
+        onClick={() => setClickedDistrictInfo(null)} 
       >
         <ChangeView center={initialCenter} zoom={initialZoom} />
         <TileLayer
@@ -226,14 +224,13 @@ export function InteractiveDistrictMap() {
         />
         {districtFeatureCollection && districtFeatureCollection.features.length > 0 && (
           <GeoJSON
-            key={JSON.stringify(districtFeatureCollection)} // Force re-render if data changes
+            key={JSON.stringify(districtFeatureCollection)} 
             data={districtFeatureCollection as LocalGeoJSON.GeoJsonObject} 
             style={geoJsonStyle}
             onEachFeature={onEachFeature}
           />
         )}
 
-        {/* User's Current Location Marker (Optional based on button click) */}
         {userLocation && (
           <Marker position={[userLocation.lat, userLocation.lng]}>
             <Popup>
@@ -250,28 +247,17 @@ export function InteractiveDistrictMap() {
         )}
       </MapContainer>
 
-      {/* Locate Me Button (Optional) */}
-      <Button 
-        onClick={locateUser} 
-        className="fixed bottom-20 right-4 z-[1000] bg-background/80 hover:bg-background/95 border border-border shadow-md"
-        variant="outline"
-        size="icon"
-        aria-label="Locate Me"
-      >
-        <LocateFixed className="h-5 w-5 text-primary"/>
-      </Button>
-
-      {/* Click Info-box */}
+      {/* Info-box for Clicked District */}
       {clickedDistrictInfo && (
         <div
           style={{
             position: 'fixed',
-            left: `${clickedDistrictInfo.x + 15}px`, // Offset from cursor
-            top: `${clickedDistrictInfo.y + 15}px`,  // Offset from cursor
-            transform: clickedDistrictInfo.x > window.innerWidth - 270 ? 'translateX(-100%) translateX(-30px)' : 'none', // Adjust if too close to right edge
+            left: `${clickedDistrictInfo.x + 15}px`, 
+            top: `${clickedDistrictInfo.y + 15}px`,  
+            transform: clickedDistrictInfo.x > window.innerWidth - 270 ? 'translateX(-100%) translateX(-30px)' : 'none',
           }}
           className="p-4 bg-background text-foreground rounded-lg shadow-xl border border-border text-sm z-[1001] w-64 transition-all duration-150 ease-out"
-          onClick={(e) => e.stopPropagation()} // Prevent map click when clicking inside info box
+          onClick={(e) => e.stopPropagation()} 
         >
           <button 
             onClick={() => setClickedDistrictInfo(null)}
@@ -289,7 +275,7 @@ export function InteractiveDistrictMap() {
               className="w-full text-accent border-accent hover:bg-accent/10 hover:text-accent-foreground text-xs py-1.5 h-auto mt-2"
               onClick={() => {
                 router.push(clickedDistrictInfo.learnMoreUrl);
-                setClickedDistrictInfo(null); // Close info box on navigation
+                setClickedDistrictInfo(null); 
               }}
             >
               Learn More <ExternalLink className="ml-1.5 h-3 w-3" />
@@ -300,5 +286,3 @@ export function InteractiveDistrictMap() {
     </div>
   );
 }
-
-    
