@@ -28,7 +28,7 @@ export function Hero() {
           <Image
             src="https://placehold.co/1200x525.png" // Placeholder for a 2D map of Nepal
             alt="Stylized 2D map of Nepal showing its diverse geography and key regions for travel and tourism"
-            data-ai-hint="Nepal 2Dmap" // Specific hint for sourcing a real 2D map image
+            data-ai-hint="Nepal map" // Specific hint for sourcing a real 2D map image
             fill
             className="object-contain" // Ensure the whole map is visible
             priority
