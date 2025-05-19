@@ -18,43 +18,46 @@ import {
   ZoomableGroup,
   type GeographyProps
 } from 'react-simple-maps';
+import { cn } from "@/lib/utils";
 
-// TODO: Replace this with the actual path to your GeoJSON file for Nepal's provinces
-// This GeoJSON should be stored in your /public folder or fetched from a URL/API.
-// For this example, we'll use a placeholder URL. You should replace this with your actual data source.
-const NEPAL_GEO_URL = "/data/nepal-provinces-topo.json"; // You need to create this file
+
+const NEPAL_GEO_URL = "/data/nepal-provinces-topo.json";
 
 interface ProvinceFeatureProperties {
-  NAME_1: string; // Adjust property names based on your GeoJSON
+  NAME_1?: string; // Province name from GADM data
+  DIST_EN?: string; // District name if using district-level GeoJSON
+  ADM1_EN?: string; // Alternative province name key
+  OBJECTID?: string | number; // Fallback ID
   [key: string]: any;
 }
 
 interface ProvinceMapData extends ProvinceFeatureProperties {
   id: string;
   name: string;
-  population?: number; // Will be fetched from Firestore
+  population?: number;
+  type?: string; // To distinguish from CityMapData in tooltipContent
 }
 
 interface CityMapData {
   id: string;
   name: string;
   coordinates: [number, number];
-  population?: number; // Will be fetched from Firestore
+  population?: number;
   provinceId?: string;
+  type: "City"; // To distinguish from ProvinceMapData
 }
 
 const majorCities: CityMapData[] = [
-  { id: "kathmandu", name: "Kathmandu", coordinates: [85.3240, 27.7172], provinceId: "bagmati" },
-  { id: "pokhara", name: "Pokhara", coordinates: [83.9856, 28.2096], provinceId: "gandaki" },
-  { id: "lumbini", name: "Lumbini", coordinates: [83.2756, 27.4816], provinceId: "lumbini" },
-  // Add more major cities with their provinceId if needed
+  { id: "kathmandu", name: "Kathmandu", coordinates: [85.3240, 27.7172], provinceId: "bagmati", type: "City" },
+  { id: "pokhara", name: "Pokhara", coordinates: [83.9856, 28.2096], provinceId: "gandaki", type: "City" },
+  { id: "lumbini", name: "Lumbini", coordinates: [83.2756, 27.4816], provinceId: "lumbini", type: "City" },
 ];
 
 export function HomepageMap() {
   const [tooltipContent, setTooltipContent] = React.useState<ProvinceMapData | CityMapData | null>(null);
   const [popoverOpen, setPopoverOpen] = React.useState(false);
   const [popoverTarget, setPopoverTarget] = React.useState<EventTarget | null>(null);
-  const [mapData, setMapData] = React.useState<GeoJSON.Feature[] | null>(null);
+  const [mapData, setMapData] = React.useState<any | null>(null); // Changed type to any for TopoJSON object
   const [provincePopulations, setProvincePopulations] = React.useState<Record<string, number>>({});
   const [cityPopulations, setCityPopulations] = React.useState<Record<string, number>>({});
   const [isLoading, setIsLoading] = React.useState(true);
@@ -63,28 +66,19 @@ export function HomepageMap() {
     const fetchData = async () => {
       setIsLoading(true);
       try {
-        // Fetch GeoJSON for provinces
         const geoRes = await fetch(NEPAL_GEO_URL);
         if (!geoRes.ok) throw new Error(`Failed to fetch GeoJSON: ${geoRes.statusText}`);
-        const geoData = await geoRes.json();
-        // Assuming the GeoJSON is a FeatureCollection and its features are in `geoData.features`
-        // or if it's TopoJSON, it might be in `geoData.objects.your_object_name.geometries`
-        // For react-simple-maps, you pass the objects directly to Geographies
-        setMapData(geoData.objects.nepal_provinces.geometries); // Adjust if your TopoJSON structure is different
+        const geoData: any = await geoRes.json(); // geoData is the full TopoJSON object
+        setMapData(geoData); // Store the full TopoJSON object
 
-        // Fetch population data from Firestore (Example structure)
-        // Provinces
         const provincesSnapshot = await getDocs(collection(db, "nepal_provinces_data"));
         const provPopData: Record<string, number> = {};
         provincesSnapshot.forEach((doc: DocumentData) => {
           const data = doc.data();
-          // Assuming doc.id is like "bagmati_province" and geoJSON property is "Bagmati Province"
-          // You'll need a consistent way to map Firestore doc ID or a field to GeoJSON properties
-          provPopData[data.name.toLowerCase().replace(' province','').replace(' ','_')] = data.population;
+          provPopData[data.name.toLowerCase().replace(' province','').replace(/\s+/g, '_')] = data.population;
         });
         setProvincePopulations(provPopData);
 
-        // Cities
         const citiesSnapshot = await getDocs(collection(db, "nepal_major_cities_data"));
         const cityPopData: Record<string, number> = {};
         citiesSnapshot.forEach((doc: DocumentData) => {
@@ -94,7 +88,8 @@ export function HomepageMap() {
 
       } catch (error) {
         console.error("Error loading map data:", error);
-        setTooltipContent({ id: 'error', name: 'Error loading map data', population: 0 });
+        // Set a generic error for tooltip if needed, or handle UI error state
+        // setTooltipContent({ id: 'error', name: 'Error loading map data', population: 0 });
       } finally {
         setIsLoading(false);
       }
@@ -104,14 +99,14 @@ export function HomepageMap() {
 
   const handleGeographyClick = (geo: GeographyProps, event: React.MouseEvent<SVGPathElement, MouseEvent>) => {
     const properties = geo.properties as ProvinceFeatureProperties;
-    // Use a consistent key for province name, e.g., properties.NAME_1 or a custom ID from your GeoJSON
     const provinceId = properties.ADM1_EN?.toLowerCase().replace(/\s+/g, '_') || properties.DIST_EN?.toLowerCase().replace(/\s+/g, '_') || `province_${properties.OBJECTID}`;
     const provinceName = properties.ADM1_EN || properties.DIST_EN || "Unknown Province";
 
     setTooltipContent({
       id: provinceId,
       name: provinceName,
-      population: provincePopulations[provinceId] || undefined, // Fetch from state
+      population: provincePopulations[provinceId] || undefined,
+      type: "Province", // Differentiate from City
       ...properties
     });
     setPopoverTarget(event.currentTarget);
@@ -120,8 +115,8 @@ export function HomepageMap() {
 
   const handleMarkerClick = (city: CityMapData, event: React.MouseEvent<SVGGElement, MouseEvent>) => {
     setTooltipContent({
-      ...city,
-      population: cityPopulations[city.id] || undefined, // Fetch from state
+      ...city, // City already has type: "City"
+      population: cityPopulations[city.id] || undefined,
     });
     setPopoverTarget(event.currentTarget);
     setPopoverOpen(true);
@@ -145,46 +140,48 @@ export function HomepageMap() {
     <div className="relative aspect-[16/9] w-full bg-muted/30 rounded-lg shadow-lg overflow-hidden border border-primary/20">
       <Popover open={popoverOpen} onOpenChange={setPopoverOpen}>
         <PopoverTrigger asChild>
-          {/* Dummy trigger, actual trigger is map interaction */}
-          <button ref={(node) => { if (node && popoverTarget === node.firstChild) setPopoverTarget(node.firstChild); }} style={{ display: 'none' }} />
+          <button ref={(node) => { if (node && popoverTarget === node.firstChild) setPopoverTarget(node.firstChild); }} style={{ display: 'none' }} aria-hidden="true" />
         </PopoverTrigger>
         <ComposableMap
           projection="geoMercator"
           projectionConfig={{
-            scale: 4500, // Adjust scale to fit Nepal
-            center: [84.1240, 28.3949] // Center of Nepal
+            scale: 4500, 
+            center: [84.1240, 28.3949] 
           }}
           style={{ width: "100%", height: "100%" }}
           aria-label="Interactive map of Nepal"
         >
           <ZoomableGroup center={[84.1240, 28.3949]} zoom={1}>
-            <Geographies geography={mapData}>
-              {({ geographies }) =>
-                geographies.map(geo => {
-                  const properties = geo.properties as ProvinceFeatureProperties;
-                  const provinceIdFromGeo = properties.ADM1_EN?.toLowerCase().replace(/\s+/g, '_') || properties.DIST_EN?.toLowerCase().replace(/\s+/g, '_') || `province_${properties.OBJECTID}`;
-                  const isSelected = tooltipContent?.id === provinceIdFromGeo && tooltipContent?.type !== "City";
+            {/* Ensure mapData is not null/undefined before passing to Geographies */}
+            {mapData && (
+              <Geographies geography={mapData}>
+                {({ geographies }) =>
+                  geographies.map(geo => {
+                    const properties = geo.properties as ProvinceFeatureProperties;
+                    const provinceIdFromGeo = properties.ADM1_EN?.toLowerCase().replace(/\s+/g, '_') || properties.DIST_EN?.toLowerCase().replace(/\s+/g, '_') || `province_${properties.OBJECTID}`;
+                    const isSelected = tooltipContent?.id === provinceIdFromGeo && tooltipContent?.type !== "City";
 
-                  return (
-                    <Geography
-                      key={geo.rsmKey}
-                      geography={geo}
-                      onClick={(event) => handleGeographyClick(geo as GeographyProps, event)}
-                      className={cn(
-                        "fill-muted-foreground/30 stroke-background outline-none transition-all duration-150 ease-in-out",
-                        "hover:fill-accent/70 cursor-pointer",
-                        isSelected ? "fill-accent stroke-accent-foreground" : "hover:fill-accent/50"
-                      )}
-                      style={{
-                        default: { outline: 'none' },
-                        hover: { outline: 'none', fill: "hsl(var(--accent))", stroke: "hsl(var(--accent-foreground))", strokeWidth: 0.75 },
-                        pressed: { outline: 'none', fill: "hsl(var(--accent))", stroke: "hsl(var(--accent-foreground))" },
-                      }}
-                    />
-                  );
-                })
-              }
-            </Geographies>
+                    return (
+                      <Geography
+                        key={geo.rsmKey}
+                        geography={geo}
+                        onClick={(event) => handleGeographyClick(geo as GeographyProps, event)}
+                        className={cn(
+                          "fill-muted-foreground/30 stroke-background outline-none transition-all duration-150 ease-in-out",
+                          "hover:fill-accent/70 cursor-pointer",
+                          isSelected ? "fill-accent stroke-accent-foreground" : "hover:fill-accent/50"
+                        )}
+                        style={{
+                          default: { outline: 'none' },
+                          hover: { outline: 'none', fill: "hsl(var(--accent))", stroke: "hsl(var(--accent-foreground))", strokeWidth: 0.75 },
+                          pressed: { outline: 'none', fill: "hsl(var(--accent))", stroke: "hsl(var(--accent-foreground))" },
+                        }}
+                      />
+                    );
+                  })
+                }
+              </Geographies>
+            )}
             {majorCities.map(city => (
               <Marker
                 key={city.id}
@@ -192,27 +189,18 @@ export function HomepageMap() {
                 onClick={(event) => handleMarkerClick(city, event)}
               >
                 <circle r={5} className="fill-primary stroke-primary-foreground stroke-2 cursor-pointer hover:fill-accent transition-colors" />
-                <title>{city.name}</title> {/* Basic HTML tooltip on hover */}
+                <title>{city.name}</title> 
               </Marker>
             ))}
           </ZoomableGroup>
         </ComposableMap>
-        {tooltipContent && popoverTarget && (
+        {tooltipContent && popoverOpen && ( // Ensure popoverOpen is also true
           <PopoverContent
+            target={popoverTarget as HTMLElement | undefined} // Added as HTMLElement | undefined
             className="w-64 shadow-xl border-primary/30 bg-background p-4 rounded-lg"
             side="right"
             align="start"
-            // This is a bit of a hack to make Popover attach to the SVG element clicked
-            // For better placement, you might need a more complex solution or a different tooltip library
-            // that works better with SVG targets.
-            onOpenAutoFocus={(e) => e.preventDefault()} // Prevents focus shift that can close popover
-            // @ts-ignore - PopoverContent doesn't officially support a target ref this way
-            // but it can work for positioning.
-            // For a production app, consider a custom tooltip solution if this is flaky.
-            // target={popoverTarget as HTMLElement}
-            // Removed target prop as it's not standard and might cause issues.
-            // Positioning will rely on the trigger (hidden button) or default Popover behavior.
-            // Consider using event coordinates to position a custom tooltip if Popover isn't ideal.
+            onOpenAutoFocus={(e) => e.preventDefault()} 
           >
             <div className="space-y-2">
               <h4 className="font-semibold text-lg text-primary flex items-center">
@@ -225,13 +213,14 @@ export function HomepageMap() {
                   Population: {tooltipContent.population.toLocaleString()}
                 </p>
               )}
-              {/* Add more details from geo.properties or Firestore if needed */}
-              <p className="text-xs text-muted-foreground/80">
-                {(tooltipContent as ProvinceMapData).ADM0_EN && `Country: ${(tooltipContent as ProvinceMapData).ADM0_EN}`}
-              </p>
+              {(tooltipContent as ProvinceMapData).ADM0_EN && (
+                <p className="text-xs text-muted-foreground/80">
+                  Country: {(tooltipContent as ProvinceMapData).ADM0_EN}
+                </p>
+              )}
               
               <Button asChild variant="outline" size="sm" className="w-full mt-2 border-accent text-accent hover:bg-accent/10">
-                <Link href={tooltipContent.type === "City" ? `/cities/${tooltipContent.id}` : `/districts?name=${(tooltipContent as ProvinceMapData)?.ADM1_EN || tooltipContent.id}`}>
+                <Link href={tooltipContent.type === "City" ? `/cities/${tooltipContent.id}` : `/districts?name=${(tooltipContent as ProvinceMapData)?.ADM1_EN || (tooltipContent as ProvinceMapData)?.DIST_EN || tooltipContent.id}`}>
                   Learn More <ExternalLink className="ml-2 h-4 w-4" />
                 </Link>
               </Button>
@@ -245,3 +234,4 @@ export function HomepageMap() {
     </div>
   );
 }
+
