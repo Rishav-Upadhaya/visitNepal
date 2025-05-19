@@ -2,21 +2,21 @@
 // src/components/maps/InteractiveDistrictMap.tsx
 "use client";
 
-import type { LatLngExpression, LeafletMouseEvent, Layer, PathOptions, DivIcon } from 'leaflet';
+import type { LatLngExpression, LeafletMouseEvent, Layer, PathOptions } from 'leaflet';
 // CSS IMPORTS (CRUCIAL for Leaflet to work)
 import 'leaflet/dist/leaflet.css'; 
 // Recommended for resolving default icon issues with webpack
 import 'leaflet-defaulticon-compatibility/dist/leaflet-defaulticon-compatibility.webpack.css'; 
 import 'leaflet-defaulticon-compatibility'; 
 
-import L from 'leaflet'; // Import L for L.divIcon
+import L from 'leaflet'; // Import L for custom icons or other Leaflet specifics if needed
 import { MapContainer, TileLayer, GeoJSON, Marker, Popup, useMap } from 'react-leaflet';
 import { useEffect, useState, useRef, useCallback } from 'react';
 import { db } from '@/lib/firebase'; 
 import { collection, getDocs, type DocumentData } from 'firebase/firestore';
 import { useRouter } from 'next/navigation';
-import { Loader2, InfoIcon, ExternalLink, XIcon, MapPin } from 'lucide-react';
-import type { DistrictFeature, DistrictProperties, GeoJSON as LocalGeoJSON } from '@/types';
+import { Loader2, InfoIcon, ExternalLink, XIcon, LocateFixed } from 'lucide-react';
+import type { DistrictDocument, DistrictProperties, GeoJSON as LocalGeoJSON } from '@/types';
 import { Button } from '@/components/ui/button';
 
 // Information for the click info-box
@@ -51,10 +51,9 @@ export function InteractiveDistrictMap() {
   const [loading, setLoading] = useState(true);
   const [mapError, setMapError] = useState<string | null>(null);
   const router = useRouter();
-  const mapRef = useRef<L.Map | null>(null);
-  const infoBoxRef = useRef<HTMLDivElement>(null);
+  const mapRef = useRef<L.Map | null>(null); // To control map instance
 
-  // Fetch district GeoJSON data from Firestore
+  // Fetch district data from Firestore
   useEffect(() => {
     const fetchDistrictsData = async () => {
       setLoading(true);
@@ -62,13 +61,13 @@ export function InteractiveDistrictMap() {
       try {
         const querySnapshot = await getDocs(collection(db, 'districts'));
         if (querySnapshot.empty) {
-          setMapError("No district data found. Ensure 'districts' collection in Firestore has documents with 'name', 'learnMoreUrl', and GeoJSON 'geometry' fields.");
+          setMapError("No district data found in Firestore 'districts' collection.");
           setDistrictFeatureCollection(null);
           return;
         }
         
-        const features: DistrictFeature[] = querySnapshot.docs.map(doc => {
-          const data = doc.data();
+        const features: LocalGeoJSON.Feature<LocalGeoJSON.Polygon | LocalGeoJSON.MultiPolygon, DistrictProperties>[] = querySnapshot.docs.map(doc => {
+          const data = doc.data() as Partial<DistrictDocument>; // Cast to allow checking for fields
           if (!data.geometry || !data.name || !data.learnMoreUrl) {
             console.warn(`Skipping district document ${doc.id} due to missing critical fields (name, learnMoreUrl, or geometry).`);
             return null; 
@@ -78,14 +77,15 @@ export function InteractiveDistrictMap() {
             properties: {
               name: data.name,
               learnMoreUrl: data.learnMoreUrl,
-              description: data.description || 'No description available.',
+              description: data.description || 'Click "Learn More" for details.', // Default description
             },
-            geometry: data.geometry as LocalGeoJSON.Polygon | LocalGeoJSON.MultiPolygon
+            geometry: data.geometry as LocalGeoJSON.Polygon | LocalGeoJSON.MultiPolygon, // Assert type after check
+            id: doc.id,
           };
-        }).filter(feature => feature !== null) as DistrictFeature[]; // Filter out nulls
+        }).filter(feature => feature !== null) as LocalGeoJSON.Feature<LocalGeoJSON.Polygon | LocalGeoJSON.MultiPolygon, DistrictProperties>[];
 
         if (features.length === 0) {
-          setMapError("No valid district features could be constructed. Check Firestore data and console warnings.");
+          setMapError("No valid district features could be constructed. Check Firestore data (collection 'districts') and console warnings.");
           setDistrictFeatureCollection(null);
           return;
         }
@@ -108,62 +108,51 @@ export function InteractiveDistrictMap() {
     fetchDistrictsData();
   }, []);
 
-  // Get user's geolocation
-  useEffect(() => {
+  // Optional: Get user's geolocation
+  const locateUser = useCallback(() => {
     if (typeof window !== 'undefined' && navigator.geolocation) {
       navigator.geolocation.getCurrentPosition(
         (position) => {
           const { latitude, longitude } = position.coords;
-          const placeName = "Your Current Location"; // Placeholder - implement reverse geocoding for real name
+          // Placeholder - implement reverse geocoding for real name if needed
+          const placeName = "Your Current Location"; 
           setUserLocation({ lat: latitude, lng: longitude, name: placeName });
+          if (mapRef.current) {
+            mapRef.current.flyTo([latitude, longitude], 13); // Zoom to user's location
+          }
+          // Optionally, show an info-box for user's location
+          setClickedDistrictInfo({
+            name: placeName,
+            description: "This is your estimated current location.",
+            learnMoreUrl: "", // No learn more for user location or link to help
+            x: window.innerWidth / 2, // Center info box roughly
+            y: window.innerHeight / 2,
+          });
         },
         (err) => {
           console.warn(`Geolocation permission denied or error: ${err.message}`);
+          alert(`Could not get your location: ${err.message}`);
         },
         { timeout: 10000, enableHighAccuracy: true }
       );
+    } else {
+      alert("Geolocation is not supported by your browser.");
     }
   }, []);
   
-  // Close info box when clicking outside of it
-  useEffect(() => {
-    const handleClickOutside = (event: MouseEvent) => {
-      if (infoBoxRef.current && !infoBoxRef.current.contains(event.target as Node) && mapRef.current && !mapRef.current.getPane('popupPane')?.contains(event.target as Node) ) {
-         // Check if the click was on a map layer (polygon)
-        let onPolygon = false;
-        mapRef.current.eachLayer(layer => {
-            if (layer instanceof L.Path && (layer as any)._path && (layer as any)._path.contains(event.target as Node)) {
-                onPolygon = true;
-            }
-        });
-        if (!onPolygon) {
-          setClickedDistrictInfo(null);
-        }
-      }
-    };
 
-    if (clickedDistrictInfo) {
-      document.addEventListener('mousedown', handleClickOutside);
-    }
-    return () => {
-      document.removeEventListener('mousedown', handleClickOutside);
-    };
-  }, [clickedDistrictInfo]);
-
-
-  const onEachFeature = useCallback((feature: DistrictFeature, layer: Layer) => {
+  const onEachFeature = useCallback((feature: LocalGeoJSON.Feature<LocalGeoJSON.Polygon | LocalGeoJSON.MultiPolygon, DistrictProperties>, layer: Layer) => {
     const defaultStyle: PathOptions = {
-      fillColor: 'hsl(var(--primary) / 0.1)',
+      fillColor: 'hsl(var(--primary-foreground))', // Light fill from theme
       weight: 1,
       opacity: 1,
-      color: 'hsl(var(--primary) / 0.6)',
-      fillOpacity: 0.2,
+      color: 'hsl(var(--border))', // Border color from theme
+      fillOpacity: 0.4,
     };
-    const hoverStyle: PathOptions = {
+    const hoverStyle: PathOptions = { // Subtle hover for click affordance
+      fillOpacity: 0.6,
       weight: 2,
-      color: 'hsl(var(--accent))',
-      fillColor: 'hsl(var(--accent) / 0.3)',
-      fillOpacity: 0.5,
+      color: 'hsl(var(--accent))'
     };
 
     (layer as L.Path).setStyle(defaultStyle);
@@ -171,15 +160,12 @@ export function InteractiveDistrictMap() {
     layer.on({
       mouseover: (e: LeafletMouseEvent) => {
         (e.target as L.Path).setStyle(hoverStyle);
-        if (!L.Browser.ie && !L.Browser.opera && !L.Browser.edge) {
-            e.target.bringToFront();
-        }
       },
       mouseout: (e: LeafletMouseEvent) => {
         (e.target as L.Path).setStyle(defaultStyle);
       },
       click: (e: LeafletMouseEvent) => {
-        L.DomEvent.stopPropagation(e); // Important to prevent map click handler from closing it immediately
+        L.DomEvent.stopPropagation(e); // Prevent map click handler from closing it immediately
         const properties = feature.properties;
         setClickedDistrictInfo({
           name: properties.name,
@@ -190,17 +176,17 @@ export function InteractiveDistrictMap() {
         });
       },
     });
-  }, [router]);
+  }, [router]); // router is a dependency if used in learnMoreUrl
 
-  const geoJsonStyle = (): PathOptions => ({
-    fillColor: 'hsl(var(--primary) / 0.1)',
+  const geoJsonStyle = (): PathOptions => ({ // Default style for GeoJSON layer
+    fillColor: 'hsl(var(--primary-foreground))',
     weight: 1,
     opacity: 1,
-    color: 'hsl(var(--primary) / 0.6)', 
-    fillOpacity: 0.2,
+    color: 'hsl(var(--border))', 
+    fillOpacity: 0.4,
   });
   
-  const initialCenter: LatLngExpression = [28.3949, 84.1240];
+  const initialCenter: LatLngExpression = [28.3949, 84.1240]; // Center of Nepal
   const initialZoom = 7;
 
   if (loading) {
@@ -223,7 +209,7 @@ export function InteractiveDistrictMap() {
   }
 
   return (
-    <div className="h-screen w-screen_fixed_donot_change_this relative"> {/* Ensure relative positioning for absolute children if needed */}
+    <div className="h-screen w-screen_fixed_donot_change_this relative">
       <MapContainer
         center={initialCenter}
         zoom={initialZoom}
@@ -231,7 +217,7 @@ export function InteractiveDistrictMap() {
         style={{ height: '100%', width: '100%' }}
         className="bg-muted"
         whenCreated={mapInstance => { mapRef.current = mapInstance; }}
-        onClick={() => setClickedDistrictInfo(null)} // Close info box on map click
+        onClick={() => setClickedDistrictInfo(null)} // Click on map closes info box
       >
         <ChangeView center={initialCenter} zoom={initialZoom} />
         <TileLayer
@@ -240,24 +226,23 @@ export function InteractiveDistrictMap() {
         />
         {districtFeatureCollection && districtFeatureCollection.features.length > 0 && (
           <GeoJSON
-            key={JSON.stringify(districtFeatureCollection)} 
-            data={districtFeatureCollection as LocalGeoJSON.GeoJsonObject} // Cast to GeoJsonObject for react-leaflet
+            key={JSON.stringify(districtFeatureCollection)} // Force re-render if data changes
+            data={districtFeatureCollection as LocalGeoJSON.GeoJsonObject} 
             style={geoJsonStyle}
             onEachFeature={onEachFeature}
           />
         )}
 
-        {/* User's Current Location Marker */}
+        {/* User's Current Location Marker (Optional based on button click) */}
         {userLocation && (
           <Marker position={[userLocation.lat, userLocation.lng]}>
             <Popup>
               <div className="p-2 bg-background rounded-md shadow-lg border border-border">
-                <h3 className="font-semibold text-sm text-primary mb-1 flex items-center">
-                  <MapPin className="w-4 h-4 mr-1.5 text-accent"/>
+                <h3 className="font-semibold text-sm text-primary mb-1">
                   {userLocation.name}
                 </h3>
                 <p className="text-xs text-muted-foreground">
-                  (Estimated based on your browser)
+                  (Estimated)
                 </p>
               </div>
             </Popup>
@@ -265,16 +250,27 @@ export function InteractiveDistrictMap() {
         )}
       </MapContainer>
 
+      {/* Locate Me Button (Optional) */}
+      <Button 
+        onClick={locateUser} 
+        className="fixed bottom-20 right-4 z-[1000] bg-background/80 hover:bg-background/95 border border-border shadow-md"
+        variant="outline"
+        size="icon"
+        aria-label="Locate Me"
+      >
+        <LocateFixed className="h-5 w-5 text-primary"/>
+      </Button>
+
       {/* Click Info-box */}
       {clickedDistrictInfo && (
         <div
-          ref={infoBoxRef}
           style={{
+            position: 'fixed',
             left: `${clickedDistrictInfo.x + 15}px`, // Offset from cursor
             top: `${clickedDistrictInfo.y + 15}px`,  // Offset from cursor
             transform: clickedDistrictInfo.x > window.innerWidth - 270 ? 'translateX(-100%) translateX(-30px)' : 'none', // Adjust if too close to right edge
           }}
-          className="fixed p-3 bg-background text-foreground rounded-lg shadow-xl border border-border text-sm z-[1001] w-64 transition-opacity duration-200 ease-out"
+          className="p-4 bg-background text-foreground rounded-lg shadow-xl border border-border text-sm z-[1001] w-64 transition-all duration-150 ease-out"
           onClick={(e) => e.stopPropagation()} // Prevent map click when clicking inside info box
         >
           <button 
@@ -284,23 +280,25 @@ export function InteractiveDistrictMap() {
           >
             <XIcon className="h-4 w-4" />
           </button>
-          <h3 className="font-bold text-primary text-base mb-1.5 pr-4">{clickedDistrictInfo.name}</h3>
+          <h3 className="font-bold text-primary text-base mb-1 pr-4">{clickedDistrictInfo.name}</h3>
           {clickedDistrictInfo.description && <p className="text-xs text-muted-foreground mb-2.5 line-clamp-3">{clickedDistrictInfo.description}</p>}
-          <Button 
-            variant="outline" 
-            size="sm" 
-            className="w-full text-accent border-accent hover:bg-accent/10 hover:text-accent-foreground text-xs py-1.5 h-auto"
-            onClick={() => {
-              if (clickedDistrictInfo.learnMoreUrl) {
+          {clickedDistrictInfo.learnMoreUrl && (
+            <Button 
+              variant="outline" 
+              size="sm" 
+              className="w-full text-accent border-accent hover:bg-accent/10 hover:text-accent-foreground text-xs py-1.5 h-auto mt-2"
+              onClick={() => {
                 router.push(clickedDistrictInfo.learnMoreUrl);
-              }
-              setClickedDistrictInfo(null);
-            }}
-          >
-            Learn More <ExternalLink className="ml-1.5 h-3 w-3" />
-          </Button>
+                setClickedDistrictInfo(null); // Close info box on navigation
+              }}
+            >
+              Learn More <ExternalLink className="ml-1.5 h-3 w-3" />
+            </Button>
+          )}
         </div>
       )}
     </div>
   );
 }
+
+    

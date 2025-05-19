@@ -134,6 +134,14 @@ export interface DistrictProperties {
 }
 
 export interface DistrictFeature extends GeoJSON.Feature<GeoJSON.Polygon | GeoJSON.MultiPolygon, DistrictProperties> {}
+// Interface for the Firestore document structure for districts
+export interface DistrictDocument {
+  name: string;
+  learnMoreUrl: string;
+  description?: string;
+  geometry: GeoJSON.Polygon | GeoJSON.MultiPolygon; // This is the GeoJSON geometry object
+  id?: string; // Firestore document ID, optional here as it's usually the key
+}
 
 export interface ProvinceMapData { // For react-simple-maps, if still used elsewhere
   id: string;
@@ -154,5 +162,6 @@ export interface CityMapData { // For react-simple-maps markers, if still used e
   highlight?: boolean;
   iconUrl?: string;
 }
+    
 
     
