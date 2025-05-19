@@ -1,13 +1,13 @@
 
 "use client";
 
-import type { GeoJSON as LocalGeoJSON, ProvinceFeatureProperties } from '@/types';
+import type { GeoJSON as LocalGeoJSON, ProvinceFeatureProperties, ExtendedProvinceMapData, ExtendedCityMapData } from '@/types';
 import { db } from '@/lib/firebase';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { collection, getDocs, type DocumentData } from 'firebase/firestore';
-import { InfoIcon, ExternalLink, XIcon, MapPin, Users } from 'lucide-react';
+import { InfoIcon, ExternalLink, XIcon, MapPin } from 'lucide-react';
 import Link from 'next/link';
 import * as React from 'react';
 import {
@@ -21,28 +21,6 @@ import { cn } from "@/lib/utils";
 
 const NEPAL_GEO_URL = "/data/nepal-provinces-topo.json";
 
-interface ExtendedProvinceMapData {
-  id: string; // Unique key, e.g., from geo.rsmKey
-  name: string;
-  type: "Province";
-  population?: number;
-  description?: string;
-  link?: string;
-  properties: ProvinceFeatureProperties; // Original properties from GeoJSON
-}
-
-interface ExtendedCityMapData {
-  id: string; // e.g., "kathmandu"
-  name: string;
-  coordinates: [number, number];
-  type: "City";
-  population?: number;
-  description?: string;
-  link?: string;
-  highlight?: boolean;
-  properties: any; // Can hold other city-specific data
-}
-
 type SelectedFeatureInfo = {
   feature: ExtendedProvinceMapData | ExtendedCityMapData;
   pageX: number;
@@ -50,9 +28,9 @@ type SelectedFeatureInfo = {
 } | null;
 
 const majorCities: ExtendedCityMapData[] = [
-  { id: "kathmandu", name: "Kathmandu", coordinates: [85.3240, 27.7172], type: "City", description: "Capital city, rich in culture and ancient temples.", link: "/districts?name=Kathmandu", population: 1442271, highlight: true, properties: {} },
-  { id: "pokhara", name: "Pokhara", coordinates: [83.9856, 28.2096], type: "City", description: "City of lakes, with stunning Himalayan views.", link: "/districts?name=Kaski", population: 400000, highlight: true, properties: {} },
-  { id: "lumbini", name: "Lumbini", coordinates: [83.2756, 27.4816], type: "City", description: "Birthplace of Lord Buddha, a sacred pilgrimage site.", link: "/districts?name=Rupandehi", population: 100000, highlight: true, properties: {} },
+  { id: "kathmandu", name: "Kathmandu", coordinates: [85.3240, 27.7172], type: "City", description: "Capital city, rich in culture and ancient temples.", link: "/districts?name=Kathmandu", population: 1442271, properties: {} },
+  { id: "pokhara", name: "Pokhara", coordinates: [83.9856, 28.2096], type: "City", description: "City of lakes, with stunning Himalayan views.", link: "/districts?name=Kaski", population: 400000, properties: {} },
+  { id: "lumbini", name: "Lumbini", coordinates: [83.2756, 27.4816], type: "City", description: "Birthplace of Lord Buddha, a sacred pilgrimage site.", link: "/districts?name=Rupandehi", population: 100000, properties: {} },
 ];
 
 export function HomepageMap() {
@@ -78,7 +56,7 @@ export function HomepageMap() {
         }
         const topoJsonData: any = await geoRes.json();
         
-        console.log("HomepageMap: DEBUG - TopoJSON fetched successfully. Parsed data sample:", JSON.stringify(topoJsonData, null, 2).substring(0, 200) + "...");
+        console.log("HomepageMap: DEBUG - TopoJSON fetched successfully. Parsed data sample:", JSON.stringify(topoJsonData, null, 2).substring(0, 500) + "...");
 
         if (typeof topoJsonData !== 'object' || topoJsonData === null || !topoJsonData.objects || Object.keys(topoJsonData.objects).length === 0) {
           setFetchError(`Invalid TopoJSON structure in ${NEPAL_GEO_URL}: 'objects' property is missing, empty, or file is not valid JSON. Received: ${JSON.stringify(topoJsonData, null, 2).substring(0, 500)}`);
@@ -101,7 +79,6 @@ export function HomepageMap() {
         const provData: Record<string, Partial<ExtendedProvinceMapData>> = {};
         provincesSnapshot.forEach((doc: DocumentData) => {
           const data = doc.data();
-          // Normalize ID: lowercase, replace spaces with underscores, remove "_province" suffix
           const normalizedId = (data.id?.toLowerCase() || doc.id.toLowerCase()).replace(/\s+/g, '_').replace(/_province$/, '');
           provData[normalizedId] = { population: data.population, description: data.description, link: data.link };
         });
@@ -134,11 +111,10 @@ export function HomepageMap() {
   }, []);
   
   React.useEffect(() => {
-    console.log("HomepageMap: DEBUG - selectedFeatureInfo updated:", selectedFeatureInfo);
+    console.log("HomepageMap: DEBUG - selectedFeatureInfo state updated:", selectedFeatureInfo);
   }, [selectedFeatureInfo]);
 
   const handleMapContainerClick = React.useCallback((event: React.MouseEvent<HTMLDivElement>) => {
-     // Only close if the click is directly on the map container, not on its children (like the info box)
      if (event.target === event.currentTarget) {
         console.log("HomepageMap: DEBUG - Map background clicked, setting selectedFeatureInfo to null.");
         setSelectedFeatureInfo(null);
@@ -171,35 +147,31 @@ export function HomepageMap() {
       </div>
     );
   }
-  
-  if (selectedFeatureInfo) {
-    console.log("HomepageMap: DEBUG - Rendering info box for:", selectedFeatureInfo.feature.name, "at", selectedFeatureInfo.pageX, selectedFeatureInfo.pageY);
-  }
-
 
   return (
     <div
       ref={mapContainerRef}
-      className="relative aspect-[16/9] w-full bg-green-100 dark:bg-green-900/30 rounded-lg shadow-lg overflow-hidden border border-border"
-      onClick={handleMapContainerClick} // Close info box when clicking on map background
+      className="relative aspect-[16/9] w-full bg-lime-100 dark:bg-green-900/30 rounded-lg shadow-lg overflow-hidden border border-border"
+      onClick={handleMapContainerClick}
     >
       {selectedFeatureInfo && selectedFeatureInfo.feature && (
-        <Card
-          className={cn(
-            "fixed p-3 w-64 shadow-xl border border-border z-[60]", // z-index ensures it's above map but below other UI like header
-            "bg-card text-card-foreground rounded-md"
-          )}
+        <div
           style={{
+            position: 'fixed',
             left: `${selectedFeatureInfo.pageX + 15}px`,
             top: `${selectedFeatureInfo.pageY + 15}px`,
-            transform: selectedFeatureInfo.pageX > (mapContainerRef.current?.clientWidth ?? window.innerWidth) - 280 
-              ? 'translateX(calc(-100% - 30px))' 
-              : 'translateX(0px)',
+            transform: mapContainerRef.current && selectedFeatureInfo.pageX > mapContainerRef.current.clientWidth - 280 ? 'translateX(calc(-100% - 30px))' : 'translateX(0px)',
+            width: '256px', // Equivalent to w-64
+            zIndex: 50, // Tailwind z-50
           }}
-          onClick={(e) => e.stopPropagation()} // Prevent click inside info box from closing it via map container click
+          className={cn(
+            "p-0 shadow-xl border border-border rounded-md",
+            "bg-card text-card-foreground"
+          )}
+          onClick={(e) => e.stopPropagation()}
         >
-          <CardHeader className="p-2 flex flex-row items-start justify-between space-y-0 mb-1">
-            <CardTitle className="text-base text-primary flex items-center gap-1.5">
+          <CardHeader className="p-3 flex flex-row items-start justify-between space-y-0 mb-1 bg-muted/50 rounded-t-md">
+            <CardTitle className="text-base font-semibold text-primary flex items-center gap-1.5">
               <MapPin className="h-4 w-4 flex-shrink-0" />
               {selectedFeatureInfo.feature.name}
             </CardTitle>
@@ -207,7 +179,7 @@ export function HomepageMap() {
                 <XIcon className="h-3.5 w-3.5" />
             </Button>
           </CardHeader>
-          <CardContent className="p-2 text-xs space-y-1">
+          <CardContent className="p-3 text-xs space-y-1">
             <p className="text-muted-foreground">Type: {selectedFeatureInfo.feature.type}</p>
             {selectedFeatureInfo.feature.description && (
                 <p className="text-muted-foreground line-clamp-2">{selectedFeatureInfo.feature.description}</p>
@@ -220,22 +192,22 @@ export function HomepageMap() {
             )}
           </CardContent>
           {selectedFeatureInfo.feature.link && (
-            <CardFooter className="p-2 pt-2 mt-1 border-t border-border">
-                <Button asChild variant="link" size="sm" className="w-full text-accent hover:text-accent/80 text-xs h-7 justify-start p-0">
-                  <Link href={selectedFeatureInfo.feature.link} target="_blank" rel="noopener noreferrer">
+            <CardFooter className="p-3 pt-2 mt-1 border-t border-border">
+                <Button asChild variant="outline" size="sm" className="w-full text-accent border-accent hover:bg-accent/10 hover:text-accent-foreground text-xs h-7 justify-start p-1.5">
+                  <Link href={selectedFeatureInfo.feature.link} target={selectedFeatureInfo.feature.link.startsWith('http') ? '_blank' : '_self'} rel="noopener noreferrer">
                     Learn More <ExternalLink className="ml-1 h-3 w-3" />
                   </Link>
                 </Button>
             </CardFooter>
           )}
-        </Card>
+        </div>
       )}
-      <div className="h-full w-full"> {/* This div ensures ComposableMap takes full dimensions of its parent */}
+      <div className="h-full w-full">
         <ComposableMap
           projection="geoMercator"
           projectionConfig={{
-            scale: 4500, // Adjust scale to fit Nepal well
-            center: [84.1240, 28.3949] // Center of Nepal
+            scale: 4500,
+            center: [84.1240, 28.3949]
           }}
           style={{ width: "100%", height: "100%" }}
           aria-label="Interactive map of Nepal showing provinces and key cities"
@@ -246,11 +218,9 @@ export function HomepageMap() {
                 {({ geographies }) =>
                   geographies.map(geo => {
                     const currentProperties = geo.properties as ProvinceFeatureProperties;
-                    const isSelected = selectedFeatureInfo?.feature.type === "Province" && selectedFeatureInfo.feature.id === geo.rsmKey;
-                    
-                    // Normalize province name from properties for matching with Firestore data
                     const geoId = (currentProperties.ADM1_EN || currentProperties.DIST_EN || geo.rsmKey.toString()).toLowerCase().replace(/\s+/g, '_').replace(/_province$/, '');
                     const details = provinceDetails[geoId] || {};
+                    const isSelected = selectedFeatureInfo?.feature.type === "Province" && selectedFeatureInfo.feature.id === geo.rsmKey;
                     
                     return (
                       <Geography
@@ -261,18 +231,18 @@ export function HomepageMap() {
                           const displayName = currentProperties.DIST_EN || currentProperties.ADM1_EN || `Region ${geo.rsmKey.slice(-4)}`;
                           const linkName = currentProperties.DIST_EN ? displayName : (currentProperties.ADM1_EN || displayName);
                           
-                          console.log("HomepageMap: DEBUG - Geography clicked:", displayName, "Properties:", currentProperties, "Event pageX:", event.pageX, "pageY:", event.pageY, "geo.rsmKey:", geo.rsmKey);
-
+                          const featureData: ExtendedProvinceMapData = {
+                            id: geo.rsmKey,
+                            name: displayName,
+                            type: "Province",
+                            population: details.population,
+                            description: details.description,
+                            link: details.link || `/districts?name=${encodeURIComponent(linkName)}`,
+                            properties: currentProperties,
+                          };
+                          console.log("Geography Clicked:", displayName, "Event pageX:", event.pageX, "pageY:", event.pageY, "Feature Data:", featureData);
                           setSelectedFeatureInfo({
-                            feature: {
-                              id: geo.rsmKey, // Use unique rsmKey for ID
-                              name: displayName,
-                              type: "Province",
-                              population: details.population,
-                              description: details.description,
-                              link: details.link || `/districts?name=${encodeURIComponent(linkName)}`,
-                              properties: currentProperties,
-                            },
+                            feature: featureData,
                             pageX: event.pageX,
                             pageY: event.pageY,
                           });
@@ -302,39 +272,23 @@ export function HomepageMap() {
                     const districtNameProp = properties.DIST_EN || properties.NAME_2 || properties.ADM2_EN;
                     const provinceLevelNameProp = properties.ADM1_EN || properties.NAME_1;
                     let displayName = districtNameProp || provinceLevelNameProp;
-
-                    // `geo.centroid` is a property react-simple-maps adds
                     const centroid = (geo as any).centroid as [number, number] | undefined; 
-
-                    // Define which province labels to show to reduce clutter
                     const showLabelFor = ["Bagmati", "Gandaki", "Lumbini", "Koshi", "Sudurpashchim", "Madhesh", "Karnali"];
-                     if (!centroid || !displayName ) return null; // Don't render if no centroid or name
-
-                    // Check if this geography's name (or a part of it) is in our showLabelFor list
+                     if (!centroid || !displayName ) return null;
                     const isMajorProvinceLabel = provinceLevelNameProp && showLabelFor.some(p => provinceLevelNameProp.includes(p));
-                    const isMajorCityLabel = majorCities.some(mc => mc.name === displayName); // Less relevant here if we only label provinces
-
-                    if (!isMajorProvinceLabel && !isMajorCityLabel) { // Only show labels for specified provinces or major cities
-                        return null;
-                    }
-                    displayName = displayName.replace(" Province", "").replace(" District", ""); // Clean up display name
-
-
-                    // Adjust font size based on importance or type
-                    let fontSizeClass = "text-[4px] md:text-[6px]"; // Default smaller size
-                    if (isMajorProvinceLabel || isMajorCityLabel) {
-                         fontSizeClass = "text-[5px] md:text-[7px]";
-                    }
+                    if (!isMajorProvinceLabel) return null;
+                    displayName = displayName.replace(" Province", "").replace(" District", "");
+                    
+                    let fontSizeClass = "text-[5px] md:text-[7px]";
                     if (displayName === "Kathmandu" || displayName === "Pokhara" || displayName === "Lumbini") {
-                        fontSizeClass = "text-[6px] md:text-[8px]"; // Even larger for key cities
+                        fontSizeClass = "text-[6px] md:text-[8px]";
                     }
-
 
                     return (
                       <Marker key={`label-${geo.rsmKey}`} coordinates={centroid}>
                         <text
                           textAnchor="middle"
-                          y={properties.ADM1_EN === "Bagmati" ? 2 : (properties.ADM1_EN === "Madhesh" ? -1 : 0)} // Example: Small y-offset adjustments for specific provinces if needed
+                          y={properties.ADM1_EN === "Bagmati" ? 2 : (properties.ADM1_EN === "Madhesh" ? -1 : 0)}
                           className={cn(fontSizeClass, "fill-foreground pointer-events-none select-none font-medium")}
                           style={{ paintOrder: "stroke", stroke: "hsl(var(--background))", strokeWidth: "0.6px", strokeLinecap: "butt", strokeLinejoin: "miter" }}
                         >
@@ -355,15 +309,16 @@ export function HomepageMap() {
                   key={city.id}
                   coordinates={city.coordinates}
                   onClick={(event: React.MouseEvent<SVGGElement>) => {
-                      event.stopPropagation(); // Prevent map background click from closing immediately
-                      console.log("HomepageMap: DEBUG - City marker clicked:", city.name, "Event pageX:", event.pageX, "pageY:", event.pageY);
+                      event.stopPropagation(); 
+                      const featureData: ExtendedCityMapData = {
+                          ...city,
+                          population: cityDetailsForInfo.population || city.population,
+                          description: cityDetailsForInfo.description || city.description,
+                          link: cityDetailsForInfo.link || city.link,
+                      };
+                       console.log("City Marker Clicked:", city.name, "Event pageX:", event.pageX, "pageY:", event.pageY, "Feature Data:", featureData);
                       setSelectedFeatureInfo({
-                          feature: {
-                              ...city, // Spread existing city data
-                              population: cityDetailsForInfo.population || city.population,
-                              description: cityDetailsForInfo.description || city.description,
-                              link: cityDetailsForInfo.link || city.link,
-                          },
+                          feature: featureData,
                           pageX: event.pageX,
                           pageY: event.pageY,
                       });
@@ -381,10 +336,10 @@ export function HomepageMap() {
                   />
                   <text
                     textAnchor="middle"
-                    y={-8} // Adjusted for circle marker
+                    y={-8}
                     className={cn(
                       "fill-foreground pointer-events-none select-none font-semibold",
-                      (city.name === "Kathmandu" || city.name === "Pokhara" || city.name === "Lumbini") ? "text-[6px] md:text-[8px]" : "text-[5px] md:text-[6px]" // Conditional font size
+                      (city.name === "Kathmandu" || city.name === "Pokhara" || city.name === "Lumbini") ? "text-[7px] md:text-[9px]" : "text-[5px] md:text-[6px]"
                     )}
                      style={{ paintOrder: "stroke", stroke: "hsl(var(--background))", strokeWidth: "0.5px", strokeLinecap: "butt", strokeLinejoin: "miter" }}
                   >
@@ -402,3 +357,4 @@ export function HomepageMap() {
     </div>
   );
 }
+
