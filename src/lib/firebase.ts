@@ -1,4 +1,3 @@
-
 // src/lib/firebase.ts
 
 // =====================================================================================
@@ -30,52 +29,54 @@ const firebaseConfig = {
   // measurementId: process.env.NEXT_PUBLIC_FIREBASE_MEASUREMENT_ID // Optional
 };
 
+let app: FirebaseApp | undefined = undefined;
+let db: Firestore | undefined = undefined;
+// let auth: Auth;
+// let storage: FirebaseStorage;
+
 // Check if all required Firebase config values are present
 let configComplete = true;
 const essentialKeys: (keyof typeof firebaseConfig)[] = [
   'apiKey', 'authDomain', 'projectId', 'storageBucket', 'messagingSenderId', 'appId'
 ];
 
-if (typeof window !== 'undefined') { // Run these checks only on the client-side for NEXT_PUBLIC_ variables
-  console.log("Firebase Config Loaded by Client:", {
-    apiKey: firebaseConfig.apiKey ? 'SET' : 'UNDEFINED',
-    authDomain: firebaseConfig.authDomain ? 'SET' : 'UNDEFINED',
-    projectId: firebaseConfig.projectId ? 'SET' : 'UNDEFINED',
-    storageBucket: firebaseConfig.storageBucket ? 'SET' : 'UNDEFINED',
-    messagingSenderId: firebaseConfig.messagingSenderId ? 'SET' : 'UNDEFINED',
-    appId: firebaseConfig.appId ? 'SET' : 'UNDEFINED',
+// Only run detailed checks on the client-side or during build where NEXT_PUBLIC_ vars are expected.
+// On the server-side for server components, these might not be directly available if not explicitly passed.
+if (typeof window !== 'undefined' || process.env.NODE_ENV === 'build') { // Check during build too
+  console.log("Firebase Config Values Being Checked:", {
+    apiKey: firebaseConfig.apiKey ? 'SET' : '!!! UNDEFINED/MISSING !!!',
+    authDomain: firebaseConfig.authDomain ? 'SET' : '!!! UNDEFINED/MISSING !!!',
+    projectId: firebaseConfig.projectId ? 'SET' : '!!! UNDEFINED/MISSING !!!',
+    storageBucket: firebaseConfig.storageBucket ? 'SET' : '!!! UNDEFINED/MISSING !!!',
+    messagingSenderId: firebaseConfig.messagingSenderId ? 'SET' : '!!! UNDEFINED/MISSING !!!',
+    appId: firebaseConfig.appId ? 'SET' : '!!! UNDEFINED/MISSING !!!',
   });
 
   essentialKeys.forEach(key => {
+    const envVarName = `NEXT_PUBLIC_FIREBASE_${key.replace(/([A-Z])/g, '_$1').toUpperCase()}`;
     if (!firebaseConfig[key]) {
-      console.warn(`Firebase Setup Warning: NEXT_PUBLIC_FIREBASE_${key.replace(/([A-Z])/g, '_$1').toUpperCase()} is UNDEFINED. Firebase may fail to initialize/connect. Check your environment variables (.env.local or hosting provider settings).`);
+      console.error(`Firebase FATAL Config Error: Environment variable ${envVarName} is UNDEFINED. Firebase cannot initialize. Please check your .env.local file (for local development) or your hosting provider's environment variable settings (for deployment). Value for ${key} is currently: ${firebaseConfig[key]}`);
       configComplete = false;
     }
   });
 }
 
 
-// Initialize Firebase
-let app: FirebaseApp | undefined = undefined;
-let db: Firestore | undefined = undefined;
-// let auth: Auth;
-// let storage: FirebaseStorage;
-
 if (!getApps().length) {
-  if (configComplete || process.env.NODE_ENV === 'test') { // Allow initialization if config is complete or in test environment
+  if (configComplete) {
     try {
         app = initializeApp(firebaseConfig);
         db = getFirestore(app);
         // auth = getAuth(app);
         // storage = getStorage(app);
-         console.log("Firebase initialized successfully with Project ID:", firebaseConfig.projectId);
+         console.log("Firebase initialized successfully. Project ID:", firebaseConfig.projectId);
     } catch (e) {
-        console.error("Firebase initialization error:", e);
+        console.error("Firebase initialization error during initializeApp():", e);
         app = undefined;
         db = undefined; // Ensure db is undefined if init fails
     }
   } else {
-    console.error("Firebase FATAL Error: Firebase configuration is INCOMPLETE or environment variables are not loaded. Firebase app will not be initialized. Please meticulously check your .env.local file (for local development) or your hosting provider's environment variable settings (for deployment) for ALL `NEXT_PUBLIC_FIREBASE_...` values. Refer to your Firebase project settings in the Firebase Console.");
+    console.error("Firebase FATAL Error: Firebase configuration is INCOMPLETE (see previous logs for missing variables). Firebase app WILL NOT be initialized. This will lead to 'client is offline' or similar errors. Please meticulously check your environment variable setup.");
     app = undefined;
     db = undefined;
   }
@@ -83,10 +84,15 @@ if (!getApps().length) {
   app = getApp();
   try {
     db = getFirestore(app);
+     console.log("Firebase app already initialized. Using existing app. Project ID:", app.options.projectId);
   } catch (e) {
     console.error("Firebase: Error getting Firestore instance from existing app:", e);
     db = undefined;
   }
+}
+
+if (!db && configComplete) {
+    console.warn("Firebase Warning: Firestore 'db' instance is still undefined after attempting initialization, even though configuration seemed complete. This might indicate a deeper issue with Firebase SDKs or project setup.");
 }
 
 
@@ -101,3 +107,4 @@ export { app, db /*, auth, storage */ };
 // NEXT_PUBLIC_FIREBASE_APP_ID=your_app_id
 // NEXT_PUBLIC_FIREBASE_MEASUREMENT_ID=your_measurement_id (optional)
 
+// For Vercel/Netlify/other hosting: Ensure these NEXT_PUBLIC_ variables are set in the project's environment variable settings on the platform.
