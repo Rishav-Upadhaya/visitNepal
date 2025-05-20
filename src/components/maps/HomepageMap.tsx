@@ -7,21 +7,31 @@ import { useEffect, useState, useRef, useCallback }  from 'react';
 import { ComposableMap, Geographies, Geography, Marker, ZoomableGroup } from 'react-simple-maps';
 import { useRouter } from 'next/navigation';
 import { Skeleton } from "@/components/ui/skeleton";
-import { Card, CardHeader, CardTitle, CardContent, CardDescription, CardFooter } from '@/components/ui/card';
+import { Card, CardHeader, CardTitle, CardContent, CardDescription, CardFooter } from "@/components/ui/card";
 import { Button } from '@/components/ui/button';
 import { MapPin, ExternalLink, XIcon, InfoIcon, Globe, Loader2 } from 'lucide-react';
 import { feature as topojsonFeature, type Topology, type Objects } from 'topojson-client';
 
 const NEPAL_GEO_URL = "/data/nepal-provinces-topo.json";
-const TOPOJSON_OBJECT_KEY = "nepal"; // Adjusted to match your TopoJSON structure
+const TOPOJSON_OBJECT_KEY = "nepal"; // This must match the object key in your TopoJSON file
+
+// Combine Province and City data types for the selected feature
+type SelectedFeatureDataType = Partial<ProvinceMapData & CityMapData> & {
+    name: string;
+    id: string;
+    type: 'Province' | 'City';
+    description?: string;
+    link?: string;
+    population?: number;
+    properties?: any;
+};
 
 interface SelectedFeatureDisplayInfo {
-  feature: Partial<ProvinceMapData | CityMapData> & { name: string; id: string; type: 'Province' | 'City'; description?: string; link?: string; population?: number; properties?: any };
+  feature: SelectedFeatureDataType;
   pageX: number;
   pageY: number;
 }
 
-// Predefined data for major cities.
 const majorCities: Array<CityMapData> = [
   { id: 'kathmandu', name: 'Kathmandu', coordinates: [85.3240, 27.7172], type: 'City', highlight: true, description: "The vibrant capital city, rich in culture and ancient temples.", population: 1442271, link: '/districts?name=Kathmandu' },
   { id: 'pokhara', name: 'Pokhara', coordinates: [83.9856, 28.2096], type: 'City', highlight: true, description: "A picturesque city known for Phewa Lake and stunning Himalayan views.", population: 400000, link: '/districts?name=Kaski' },
@@ -31,6 +41,7 @@ const majorCities: Array<CityMapData> = [
 export function HomepageMap() {
   const [mapData, setMapData] = useState<ExtendedFeature[] | null>(null);
   const [isLoadingMapGeometry, setIsLoadingMapGeometry] = useState(true);
+  const [isLoadingDetails, setIsLoadingDetails] = useState(false); // To indicate loading of province/city details
   const [fetchError, setFetchError] = useState<string | null>(null);
   const [selectedFeatureInfo, setSelectedFeatureInfo] = useState<SelectedFeatureDisplayInfo | null>(null);
 
@@ -41,7 +52,7 @@ export function HomepageMap() {
     const fetchData = async () => {
       setIsLoadingMapGeometry(true);
       setFetchError(null);
-      setSelectedFeatureInfo(null);
+      setSelectedFeatureInfo(null); // Clear selection on new data load
 
       try {
         console.log(`HomepageMap: Fetching map geometry from ${NEPAL_GEO_URL}...`);
@@ -77,7 +88,14 @@ export function HomepageMap() {
       } catch (err) {
         console.error("HomepageMap: Error fetching or processing map geometry:", err);
         const specificError = err instanceof Error ? err.message : "An unknown error occurred while fetching map geometry.";
-        setFetchError(specificError);
+        
+        if (specificError.includes("offline") || specificError.includes("Failed to get document")) {
+            setFetchError(`Could not connect to Firebase to fetch map details. Please ensure your Firebase setup (including environment variables for API keys, project ID, etc.) is correct, and check your internet connection. Original error: ${specificError}`);
+        } else if (specificError.includes("Invalid TopoJSON structure") || specificError.includes("404 Not Found") || specificError.includes("404")) {
+            setFetchError(`Map Error: Problem loading map geometry from ${NEPAL_GEO_URL}. Ensure the file exists, is valid TopoJSON, and contains the expected layer ('${TOPOJSON_OBJECT_KEY}'). Original: ${specificError}`);
+        } else {
+            setFetchError(specificError);
+        }
         setMapData(null);
       } finally {
         setIsLoadingMapGeometry(false);
@@ -103,7 +121,7 @@ export function HomepageMap() {
   let displayErrorMessage = fetchError;
   if (fetchError) {
     if (fetchError.includes("offline") || fetchError.includes("Failed to get document")) {
-        displayErrorMessage = `Could not connect to Firebase to fetch map details. Please ensure your Firebase setup (including environment variables for API keys, project ID, etc.) is correct, and check your internet connection. Original error: ${fetchError}`;
+        displayErrorMessage = `Map Error: Could not connect to data service. Please verify your Firebase configuration (especially environment variables like NEXT_PUBLIC_FIREBASE_PROJECT_ID in .env.local or hosting settings) and internet connection. Ensure Firestore is enabled in your Firebase project. Original: ${fetchError}`;
     } else if (fetchError.includes("Invalid TopoJSON structure") || fetchError.includes("Invalid GeoJSON data structure") || fetchError.includes("404")) {
          displayErrorMessage = `Map Error: Problem loading map geometry from ${NEPAL_GEO_URL}. Ensure the file exists, is valid (TopoJSON or GeoJSON FeatureCollection), and contains the expected layer ('${TOPOJSON_OBJECT_KEY}' if TopoJSON). Original: ${fetchError}`;
     }
@@ -135,13 +153,6 @@ export function HomepageMap() {
       className="relative w-full aspect-[16/9] bg-lime-100 dark:bg-green-900/30 rounded-xl overflow-hidden border border-border cursor-default"
       onClick={handleMapClick} 
     >
-        {/* Top-level debug state indicator - REMOVE FOR PRODUCTION */}
-        {selectedFeatureInfo && (
-            <div style={{ position: 'fixed', top: '0', left: '0', backgroundColor: 'rgba(0,255,0,0.7)', padding: '5px', zIndex: 10000, color: 'black', fontSize: '10px' }}>
-                DEBUG: Selected: {selectedFeatureInfo.feature.name} @ ({selectedFeatureInfo.pageX}, {selectedFeatureInfo.pageY})
-            </div>
-        )}
-
        <ComposableMap
         projection="geoMercator"
         projectionConfig={{
@@ -153,22 +164,23 @@ export function HomepageMap() {
       >
         <ZoomableGroup center={[84.1240, 28.3949]} zoom={1}>
           <Geographies 
-            geography={mapData} // mapData is now an array of GeoJSON features
+            geography={mapData}
           >
             {({ geographies }) =>
               geographies.map((geo: ExtendedFeature) => {
-                const currentProperties = geo.properties as ProvinceMapData['properties'] & { name?: string; DIST_EN?: string; ADM1_EN?: string; id?: string };
-                const provinceName = currentProperties?.name || currentProperties?.DIST_EN || currentProperties?.ADM1_EN || "Unknown Area";
+                const currentProperties = (geo.properties || {}) as ProvinceMapData['properties'] & { name?: string; DIST_EN?: string; ADM1_EN?: string; id?: string; description?: string; link?: string; population?: number};
+                const provinceName = currentProperties?.name || currentProperties?.DIST_EN || currentProperties?.ADM1_EN || "Unknown Province";
                 const geoId = String(geo.id || currentProperties?.id || geo.rsmKey || provinceName + Math.random());
                 
                 const isSelected = selectedFeatureInfo?.feature.id === geoId && selectedFeatureInfo.feature.type === 'Province';
 
-                const featureDataForInfoBox: SelectedFeatureDisplayInfo['feature'] = {
+                const featureDataForInfoBox: SelectedFeatureDataType = {
                   id: geoId,
                   name: provinceName,
                   type: 'Province',
-                  description: currentProperties?.description || `Explore ${provinceName}, a beautiful region of Nepal.`,
+                  description: currentProperties?.description || `Explore ${provinceName}, a diverse province in Nepal.`,
                   link: currentProperties?.link || `/districts?name=${encodeURIComponent(provinceName)}`,
+                  population: currentProperties?.population,
                   properties: geo.properties || {}
                 };
 
@@ -181,7 +193,7 @@ export function HomepageMap() {
                        console.log("Geography Clicked:", provinceName, "Event clientX:", event.clientX, "clientY:", event.clientY, "Feature Data:", featureDataForInfoBox);
                        setSelectedFeatureInfo({
                          feature: featureDataForInfoBox,
-                         pageX: event.clientX, // Use clientX/Y for position relative to viewport
+                         pageX: event.clientX, 
                          pageY: event.clientY,
                        });
                     }}
@@ -204,7 +216,7 @@ export function HomepageMap() {
           >
             {({ geographies }) =>
                 geographies.map(geo => {
-                    const properties = geo.properties as ProvinceMapData['properties'] & { name?: string; DIST_EN?: string; ADM1_EN?: string; };
+                    const properties = (geo.properties || {}) as ProvinceMapData['properties'] & { name?: string; DIST_EN?: string; ADM1_EN?: string; };
                     const provinceName = properties?.name || properties?.DIST_EN || properties?.ADM1_EN || "";
                     const centroid = (geo as any).centroid as [number, number] | undefined; 
 
@@ -239,19 +251,16 @@ export function HomepageMap() {
           </Geographies>
 
           {majorCities.map((city) => {
-            const cityToDisplay: SelectedFeatureDisplayInfo['feature'] = {
+            const cityToDisplay: SelectedFeatureDataType = {
               ...city,
               description: city.description || `Discover ${city.name}, a major hub in Nepal.`,
               link: city.link || `/districts?name=${encodeURIComponent(city.name)}`, 
             };
             const isSelected = selectedFeatureInfo?.feature.id === cityToDisplay.id && selectedFeatureInfo.feature.type === 'City';
             
-            let labelFontSize = 5;
-            let yTextOffset = -8; // Default offset above the circle
-            if (["Kathmandu", "Pokhara", "Lumbini"].includes(cityToDisplay.name)) {
-              labelFontSize = (cityToDisplay.name === "Kathmandu" || cityToDisplay.name === "Pokhara" || cityToDisplay.name === "Lumbini") ? 7 : 6;
-              yTextOffset = (cityToDisplay.name === "Kathmandu" || cityToDisplay.name === "Pokhara" || cityToDisplay.name === "Lumbini") ? -9 : -8;
-            }
+            let labelFontSize = (city.name === "Kathmandu" || city.name === "Pokhara" || city.name === "Lumbini") ? 7 : 5;
+            let yTextOffset = (city.name === "Kathmandu" || city.name === "Pokhara" || city.name === "Lumbini") ? -9 : -8;
+
 
             return (
               <Marker
@@ -262,7 +271,7 @@ export function HomepageMap() {
                    console.log("City marker clicked:", cityToDisplay.name, "Event clientX:", event.clientX, "clientY:", event.clientY, "Feature Data:", cityToDisplay);
                   setSelectedFeatureInfo({
                     feature: cityToDisplay,
-                    pageX: event.clientX, // Use clientX/Y for position relative to viewport
+                    pageX: event.clientX, 
                     pageY: event.clientY,
                   });
                 }}
@@ -340,8 +349,14 @@ export function HomepageMap() {
             )}
         </Card>
     )}
+
+    {/* Loading indicator for details (if you re-add Firestore fetching) */}
+    {isLoadingDetails && !isLoadingMapGeometry && (
+        <div className="absolute bottom-2 right-2 p-2 bg-muted/80 text-muted-foreground text-xs rounded-md flex items-center gap-2 z-50">
+            <Loader2 className="h-3 w-3 animate-spin" />
+            Loading details...
+        </div>
+    )}
     </div>
   );
 }
-
-    
