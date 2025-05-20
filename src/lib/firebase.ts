@@ -1,3 +1,4 @@
+
 // src/lib/firebase.ts
 
 // =====================================================================================
@@ -34,33 +35,27 @@ let db: Firestore | undefined = undefined;
 // let auth: Auth;
 // let storage: FirebaseStorage;
 
-// Check if all required Firebase config values are present
 let configComplete = true;
 const essentialKeys: (keyof typeof firebaseConfig)[] = [
   'apiKey', 'authDomain', 'projectId', 'storageBucket', 'messagingSenderId', 'appId'
 ];
 
-// Only run detailed checks on the client-side or during build where NEXT_PUBLIC_ vars are expected.
-// On the server-side for server components, these might not be directly available if not explicitly passed.
-if (typeof window !== 'undefined' || process.env.NODE_ENV === 'build') { // Check during build too
-  console.log("Firebase Config Values Being Checked:", {
-    apiKey: firebaseConfig.apiKey ? 'SET' : '!!! UNDEFINED/MISSING !!!',
-    authDomain: firebaseConfig.authDomain ? 'SET' : '!!! UNDEFINED/MISSING !!!',
-    projectId: firebaseConfig.projectId ? 'SET' : '!!! UNDEFINED/MISSING !!!',
-    storageBucket: firebaseConfig.storageBucket ? 'SET' : '!!! UNDEFINED/MISSING !!!',
-    messagingSenderId: firebaseConfig.messagingSenderId ? 'SET' : '!!! UNDEFINED/MISSING !!!',
-    appId: firebaseConfig.appId ? 'SET' : '!!! UNDEFINED/MISSING !!!',
-  });
+console.log("--- Firebase Configuration Check (src/lib/firebase.ts) ---");
+essentialKeys.forEach(key => {
+  const envVarName = `NEXT_PUBLIC_FIREBASE_${key.replace(/([A-Z])/g, '_$1').toUpperCase()}`;
+  if (!firebaseConfig[key]) {
+    console.error(`🔴 CRITICAL FIREBASE CONFIG ERROR: Environment variable ${envVarName} is UNDEFINED or empty.`);
+    console.error(`   Value for ${key}: '${firebaseConfig[key]}'`);
+    console.error(`   Firebase cannot initialize properly without this. Check .env.local (for local dev) or hosting provider environment variables (for deployment).`);
+    configComplete = false;
+  } else {
+    // console.log(`🟢 Firebase Config: ${envVarName} is SET.`); // Optionally log if set
+  }
+});
 
-  essentialKeys.forEach(key => {
-    const envVarName = `NEXT_PUBLIC_FIREBASE_${key.replace(/([A-Z])/g, '_$1').toUpperCase()}`;
-    if (!firebaseConfig[key]) {
-      console.error(`Firebase FATAL Config Error: Environment variable ${envVarName} is UNDEFINED. Firebase cannot initialize. Please check your .env.local file (for local development) or your hosting provider's environment variable settings (for deployment). Value for ${key} is currently: ${firebaseConfig[key]}`);
-      configComplete = false;
-    }
-  });
+if (!configComplete) {
+  console.error("🔴 CRITICAL FIREBASE CONFIG ERROR: One or more essential Firebase environment variables are missing. Firebase app WILL NOT be initialized correctly. This will likely lead to 'client is offline' or similar errors.");
 }
-
 
 if (!getApps().length) {
   if (configComplete) {
@@ -76,9 +71,9 @@ if (!getApps().length) {
         db = undefined; // Ensure db is undefined if init fails
     }
   } else {
-    console.error("Firebase FATAL Error: Firebase configuration is INCOMPLETE (see previous logs for missing variables). Firebase app WILL NOT be initialized. This will lead to 'client is offline' or similar errors. Please meticulously check your environment variable setup.");
-    app = undefined;
-    db = undefined;
+    // This block is now covered by the initial `configComplete` check and log.
+    // If not configComplete, db will remain undefined.
+    console.warn("Firebase: Initialization skipped due to incomplete configuration.");
   }
 } else {
   app = getApp();
@@ -91,14 +86,17 @@ if (!getApps().length) {
   }
 }
 
-if (!db && configComplete) {
-    console.warn("Firebase Warning: Firestore 'db' instance is still undefined after attempting initialization, even though configuration seemed complete. This might indicate a deeper issue with Firebase SDKs or project setup.");
+if (!db && configComplete) { // Log this only if config seemed complete but db is still not set
+    console.warn("Firebase Warning: Firestore 'db' instance is still undefined after attempting initialization, even though configuration seemed complete. This might indicate a deeper issue with Firebase SDKs or project setup beyond missing env vars.");
+} else if (!db && !configComplete) {
+    console.error("Firebase Error: Firestore 'db' instance is undefined because the Firebase configuration was incomplete.");
 }
 
 
 export { app, db /*, auth, storage */ };
 
-// Remember to create a .env.local file in your project root and add your Firebase config values:
+// REMINDER:
+// Create a .env.local file in your project root and add your Firebase config values:
 // NEXT_PUBLIC_FIREBASE_API_KEY=your_api_key
 // NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN=your_auth_domain
 // NEXT_PUBLIC_FIREBASE_PROJECT_ID=your_project_id
@@ -108,3 +106,4 @@ export { app, db /*, auth, storage */ };
 // NEXT_PUBLIC_FIREBASE_MEASUREMENT_ID=your_measurement_id (optional)
 
 // For Vercel/Netlify/other hosting: Ensure these NEXT_PUBLIC_ variables are set in the project's environment variable settings on the platform.
+// Values must be EXACTLY as provided by your Firebase project settings.
