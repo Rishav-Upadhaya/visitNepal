@@ -32,26 +32,32 @@ const firebaseConfig = {
 
 // Check if all required Firebase config values are present
 let configComplete = true;
+const essentialKeys: (keyof typeof firebaseConfig)[] = [
+  'apiKey', 'authDomain', 'projectId', 'storageBucket', 'messagingSenderId', 'appId'
+];
+
 if (typeof window !== 'undefined') { // Run these checks only on the client-side for NEXT_PUBLIC_ variables
-    if (!firebaseConfig.apiKey) {
-        console.warn("Firebase Setup Warning: NEXT_PUBLIC_FIREBASE_API_KEY is UNDEFINED. Firebase will likely fail to initialize/connect. Check your environment variables (.env.local or hosting provider settings).");
-        configComplete = false;
+  console.log("Firebase Config Loaded by Client:", {
+    apiKey: firebaseConfig.apiKey ? 'SET' : 'UNDEFINED',
+    authDomain: firebaseConfig.authDomain ? 'SET' : 'UNDEFINED',
+    projectId: firebaseConfig.projectId ? 'SET' : 'UNDEFINED',
+    storageBucket: firebaseConfig.storageBucket ? 'SET' : 'UNDEFINED',
+    messagingSenderId: firebaseConfig.messagingSenderId ? 'SET' : 'UNDEFINED',
+    appId: firebaseConfig.appId ? 'SET' : 'UNDEFINED',
+  });
+
+  essentialKeys.forEach(key => {
+    if (!firebaseConfig[key]) {
+      console.warn(`Firebase Setup Warning: NEXT_PUBLIC_FIREBASE_${key.replace(/([A-Z])/g, '_$1').toUpperCase()} is UNDEFINED. Firebase may fail to initialize/connect. Check your environment variables (.env.local or hosting provider settings).`);
+      configComplete = false;
     }
-    if (!firebaseConfig.projectId) {
-        console.warn("Firebase Setup Warning: NEXT_PUBLIC_FIREBASE_PROJECT_ID is UNDEFINED. Firebase will likely fail to initialize/connect. Check your environment variables.");
-        configComplete = false;
-    }
-    if (!firebaseConfig.authDomain) {
-        console.warn("Firebase Setup Warning: NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN is UNDEFINED. Firebase will likely fail to initialize/connect. Check your environment variables.");
-        configComplete = false;
-    }
-    // Add checks for other essential variables if needed
+  });
 }
 
 
 // Initialize Firebase
-let app: FirebaseApp;
-let db: Firestore;
+let app: FirebaseApp | undefined = undefined;
+let db: Firestore | undefined = undefined;
 // let auth: Auth;
 // let storage: FirebaseStorage;
 
@@ -65,14 +71,12 @@ if (!getApps().length) {
          console.log("Firebase initialized successfully with Project ID:", firebaseConfig.projectId);
     } catch (e) {
         console.error("Firebase initialization error:", e);
-        // @ts-ignore
+        app = undefined;
         db = undefined; // Ensure db is undefined if init fails
     }
   } else {
-    console.error("Firebase FATAL Error: Firebase configuration is INCOMPLETE or environment variables are not loaded. App will not be initialized. Please meticulously check your .env.local file (for local development) or your hosting provider's environment variable settings (for deployment) for ALL `NEXT_PUBLIC_FIREBASE_...` values. Refer to Firebase project settings.");
-    // @ts-ignore
+    console.error("Firebase FATAL Error: Firebase configuration is INCOMPLETE or environment variables are not loaded. Firebase app will not be initialized. Please meticulously check your .env.local file (for local development) or your hosting provider's environment variable settings (for deployment) for ALL `NEXT_PUBLIC_FIREBASE_...` values. Refer to your Firebase project settings in the Firebase Console.");
     app = undefined;
-    // @ts-ignore
     db = undefined;
   }
 } else {
@@ -81,7 +85,6 @@ if (!getApps().length) {
     db = getFirestore(app);
   } catch (e) {
     console.error("Firebase: Error getting Firestore instance from existing app:", e);
-    // @ts-ignore
     db = undefined;
   }
 }
@@ -97,3 +100,4 @@ export { app, db /*, auth, storage */ };
 // NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID=your_messaging_sender_id
 // NEXT_PUBLIC_FIREBASE_APP_ID=your_app_id
 // NEXT_PUBLIC_FIREBASE_MEASUREMENT_ID=your_measurement_id (optional)
+
