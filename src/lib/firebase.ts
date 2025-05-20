@@ -8,14 +8,32 @@ import { getFirestore, type Firestore } from "firebase/firestore";
 // Your web app's Firebase configuration
 // For Firebase JS SDK v7.20.0 and later, measurementId is optional
 const firebaseConfig = {
-  apiKey: process.env.NEXT_PUBLIC_FIREBASE_API_KEY, // Replace with your actual API key
-  authDomain: process.env.NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN, // Replace with your actual auth domain
-  projectId: process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID, // Replace with your actual project ID
-  storageBucket: process.env.NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET, // Replace with your actual storage bucket
-  messagingSenderId: process.env.NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID, // Replace with your actual messaging sender ID
-  appId: process.env.NEXT_PUBLIC_FIREBASE_APP_ID, // Replace with your actual app ID
+  apiKey: process.env.NEXT_PUBLIC_FIREBASE_API_KEY,
+  authDomain: process.env.NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN,
+  projectId: process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID,
+  storageBucket: process.env.NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET,
+  messagingSenderId: process.env.NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID,
+  appId: process.env.NEXT_PUBLIC_FIREBASE_APP_ID,
   // measurementId: process.env.NEXT_PUBLIC_FIREBASE_MEASUREMENT_ID // Optional
 };
+
+// Check if all required Firebase config values are present
+let configComplete = true;
+if (typeof window !== 'undefined') { // Run these checks only on the client-side
+    if (!firebaseConfig.apiKey) {
+        console.warn("Firebase Warning: NEXT_PUBLIC_FIREBASE_API_KEY is not defined. Firebase might not initialize correctly.");
+        configComplete = false;
+    }
+    if (!firebaseConfig.projectId) {
+        console.warn("Firebase Warning: NEXT_PUBLIC_FIREBASE_PROJECT_ID is not defined. Firebase might not initialize correctly.");
+        configComplete = false;
+    }
+    if (!firebaseConfig.authDomain) {
+        console.warn("Firebase Warning: NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN is not defined. Firebase might not initialize correctly.");
+        configComplete = false;
+    }
+}
+
 
 // Initialize Firebase
 let app: FirebaseApp;
@@ -24,14 +42,30 @@ let db: Firestore;
 // let storage: FirebaseStorage;
 
 if (!getApps().length) {
-  app = initializeApp(firebaseConfig);
+  if (configComplete || process.env.NODE_ENV === 'test') { // Allow initialization if config is complete or in test environment
+    try {
+        app = initializeApp(firebaseConfig);
+        db = getFirestore(app);
+        // auth = getAuth(app);
+        // storage = getStorage(app);
+         console.log("Firebase initialized successfully.");
+    } catch (e) {
+        console.error("Firebase initialization error:", e);
+        // @ts-ignore
+        db = undefined; // Ensure db is undefined if init fails
+    }
+  } else {
+    console.error("Firebase Error: Firebase configuration is incomplete. App will not be initialized. Please check your .env.local file or deployment environment variables for NEXT_PUBLIC_FIREBASE_... settings.");
+    // @ts-ignore
+    app = undefined;
+    // @ts-ignore
+    db = undefined;
+  }
 } else {
   app = getApp();
+  db = getFirestore(app);
 }
 
-db = getFirestore(app);
-// auth = getAuth(app);
-// storage = getStorage(app);
 
 export { app, db /*, auth, storage */ };
 
