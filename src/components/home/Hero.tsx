@@ -2,11 +2,10 @@
 "use client"; 
 
 import { Button } from '@/components/ui/button';
-import { ArrowRight, Map } from 'lucide-react'; // Using Map for the placeholder
-import dynamic from 'next/dynamic';
 import Link from 'next/link';
+import { ArrowRight, MapPin } from 'lucide-react';
+import dynamic from 'next/dynamic';
 import { Skeleton } from '@/components/ui/skeleton';
-import Image from 'next/image'; // Import next/image
 
 // Lazy load the map component
 const HomepageMapWithNoSSR = dynamic(
@@ -14,7 +13,7 @@ const HomepageMapWithNoSSR = dynamic(
   {
     ssr: false,
     loading: () => (
-      <div className="aspect-[16/9] w-full bg-muted/30 rounded-lg flex items-center justify-center">
+      <div className="aspect-[16/9] w-full h-full bg-muted/30 rounded-xl flex items-center justify-center">
         <Skeleton className="h-full w-full" />
         <p className="absolute text-primary font-semibold">Initializing Interactive Map...</p>
       </div>
@@ -24,8 +23,9 @@ const HomepageMapWithNoSSR = dynamic(
 
 export function Hero() {
   return (
-    <section className="py-20 md:py-32 bg-background">
-      <div className="container text-center">
+    <section className="bg-background">
+      {/* Frame 1: Title, Description, CTA */}
+      <div className="min-h-screen flex flex-col justify-center items-center text-center container py-12 md:py-20">
         <h1 className="text-4xl md:text-5xl lg:text-6xl font-extrabold tracking-tight text-primary leading-tight">
           Explore the Majestic Beauty of Nepal
         </h1>
@@ -40,19 +40,22 @@ export function Hero() {
         </Button>
       </div>
 
-      {/* Interactive Map Section */}
-      <div className="container mt-16 md:mt-24">
-        <div className="bg-muted/10 dark:bg-muted/20 p-4 md:p-6 rounded-xl shadow-2xl border border-border">
+      {/* Frame 2: Interactive Map Section */}
+      <div className="container mx-auto px-4 py-16 md:py-24"> {/* Added responsive padding to map section's container */}
+        <div className="bg-muted/10 dark:bg-muted/20 p-4 md:p-6 rounded-xl shadow-2xl border border-border
+                        h-auto sm:aspect-video md:h-[400px] lg:h-[500px] flex flex-col"> {/* Responsive height/aspect ratio */}
           <h2 className="text-2xl md:text-3xl font-bold text-primary text-center mb-4">
             Discover Nepal: An Interactive Overview
           </h2>
           <p className="text-center text-muted-foreground mb-6 max-w-2xl mx-auto">
-            Hover over Nepal's provinces or click on major cities on the map below. Explore detailed information and start planning your unique journey!
+            Click on districts or highlighted major cities on the map below. Explore detailed information and start planning your unique journey!
           </p>
-          {/* The actual interactive map will be rendered here */}
-          <HomepageMapWithNoSSR />
+          <div className="flex-grow w-full h-full min-h-[300px] sm:min-h-0"> {/* Ensure map has space to grow */}
+            <HomepageMapWithNoSSR />
+          </div>
         </div>
       </div>
     </section>
   );
 }
+
