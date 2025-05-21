@@ -7,7 +7,6 @@ import { ArrowRight, MapPin } from 'lucide-react';
 import dynamic from 'next/dynamic';
 import { Skeleton } from '@/components/ui/skeleton';
 
-// Lazy load the map component
 const HomepageMapWithNoSSR = dynamic(
   () => import('@/components/maps/HomepageMap').then((mod) => mod.HomepageMap),
   {
@@ -40,11 +39,11 @@ export function Hero() {
         </Button>
       </div>
 
-      {/* Frame 2: Interactive Map Section */}
-      <div className="container mx-auto px-4 py-16 md:py-24">
+      {/* Frame 2: Interactive Map Section - Now also centered like Frame 1 */}
+      <div className="min-h-screen flex flex-col justify-center items-center container px-4 py-12 md:py-20">
         <div
           className="bg-muted/10 dark:bg-muted/20 p-4 md:p-6 rounded-xl 
-                        h-auto sm:aspect-video md:h-[400px] lg:h-[500px] flex flex-col items-center" // Added items-center
+                        h-auto w-full max-w-4xl sm:aspect-video md:h-[400px] lg:h-[500px] flex flex-col items-center" 
         >
           <h2 className="text-2xl md:text-3xl font-bold text-primary text-center mb-4">
             Discover Nepal: An Interactive Overview
@@ -60,3 +59,4 @@ export function Hero() {
     </section>
   );
 }
+
