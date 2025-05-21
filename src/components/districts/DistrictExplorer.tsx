@@ -314,7 +314,7 @@ export function DistrictExplorer() {
                    </div>
                  </div>
                </CardHeader>
-              <ScrollArea className="max-h-[calc(100vh-20rem)] md:max-h-[calc(100vh-25rem)] lg:max-h-[75vh] w-full"> {/* Adjusted max-height */}
+              <ScrollArea className="max-h-[75vh] md:max-h-[calc(100vh-25rem)] lg:max-h-[75vh] w-full"> {/* Adjusted max-height */}
                 <CardContent className="p-4 md:p-6 space-y-4 md:space-y-6">
                   {isLoadingGems && (
                       <div className="flex items-center justify-center p-3 md:p-4 border rounded-lg bg-muted/50">
