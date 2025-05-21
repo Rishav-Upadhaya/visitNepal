@@ -1,8 +1,8 @@
 
 "use client";
 
-import type { ExtendedFeature, ExtendedFeatureProperties, HomepageMapProps, CityMapData, SelectedFeatureDetails } from '@/types';
-import { useEffect, useState, useRef, useCallback, useMemo } from 'react';
+import type { ExtendedFeature, ProvinceMapData, CityMapData, HomepageMapProps, SelectedFeatureDetails as ExtendedProperties } from '@/types'; // Adjusted type import
+import { useEffect, useState, useRef, useCallback } from 'react';
 import { ComposableMap, Geographies, Geography, Marker, ZoomableGroup } from 'react-simple-maps';
 import { useRouter } from 'next/navigation';
 import { Skeleton } from "@/components/ui/skeleton";
@@ -13,13 +13,12 @@ import { feature as topojsonFeature, type Topology } from 'topojson-client';
 import { getDistrictDescription } from '@/ai/flows/get-district-description-flow';
 import { useToast } from "@/hooks/use-toast";
 import { cn } from '@/lib/utils';
-// Firebase import (db) will be used for on-demand fetching
+// Firebase is not directly used in this component anymore for fetching on mount
 // import { db } from '@/lib/firebase';
 // import { doc, getDoc } from 'firebase/firestore';
 
-
 const NEPAL_GEO_URL = "/data/nepal-provinces-topo.json";
-const TOPOJSON_OBJECT_KEY = "nepal"; // Key in TopoJSON objects holding the district/province geometries
+const TOPOJSON_OBJECT_KEY = "nepal"; // Key in TopoJSON objects that holds the geometry collection
 
 interface InfoBoxStyle {
   left: string;
@@ -28,8 +27,10 @@ interface InfoBoxStyle {
   transform?: string;
 }
 
-// For storing details fetched on demand
-interface CachedDetails extends Partial<Pick<SelectedFeatureDetails, 'population' | 'description' | 'aiDescription'>> {
+interface CachedDetailEntry {
+  population?: number | null;
+  description?: string | null;
+  aiDescription?: string | null;
   isLoadingFirestore?: boolean;
   isLoadingAI?: boolean;
 }
@@ -39,9 +40,8 @@ export function HomepageMap({ initialMapData: prefetchedMapData }: HomepageMapPr
   const [isLoadingMapGeometry, setIsLoadingMapGeometry] = useState(true);
   const [fetchError, setFetchError] = useState<string | null>(null);
   
-  const [selectedFeatureInfo, setSelectedFeatureInfo] = useState<{ feature: SelectedFeatureDetails; clientX: number; clientY: number; } | null>(null);
-  const [detailsCache, setDetailsCache] = useState<Record<string, CachedDetails>>({});
-  
+  const [selectedFeatureInfo, setSelectedFeatureInfo] = useState<ExtendedProperties & { clientX: number; clientY: number; } | null>(null);
+  const [detailsCache, setDetailsCache] = useState<Record<string, CachedDetailEntry>>({});
   const [infoBoxStyle, setInfoBoxStyle] = useState<InfoBoxStyle>({ visibility: 'hidden', left: '0px', top: '0px' });
 
   const mapContainerRef = useRef<HTMLDivElement>(null);
@@ -56,85 +56,56 @@ export function HomepageMap({ initialMapData: prefetchedMapData }: HomepageMapPr
     { id: 'nepalgunj', name: 'Nepalgunj', coordinates: [81.6167, 28.0500], type: 'City', description: "Key transport and trade hub in Western Nepal, near Indian border.", population: 138951, link: '/districts?name=Banke', highlight: true },
     { id: 'janakpur', name: 'Janakpur', coordinates: [85.9228, 26.7285], type: 'City', description: "Historic city, religious center, and birthplace of Goddess Sita.", population: 195438, link: '/districts?name=Dhanusha', highlight: true },
   ];
-
-  // Effect for fetching and processing TopoJSON map data
+  
   useEffect(() => {
     const fetchData = async () => {
       setIsLoadingMapGeometry(true);
       setFetchError(null);
       setMapData(null);
 
-      if (prefetchedMapData) {
-        console.log("HomepageMap: Using prefetched map data.");
-        try {
-          if (!prefetchedMapData.objects || !prefetchedMapData.objects[TOPOJSON_OBJECT_KEY]) {
-            throw new Error(`Prefetched TopoJSON is missing 'objects.${TOPOJSON_OBJECT_KEY}'.`);
-          }
-          const layer = prefetchedMapData.objects[TOPOJSON_OBJECT_KEY];
-          // @ts-ignore // topojson-client types can be tricky with specific TopoJSON structures
-          const geoJsonFeatures = topojsonFeature(prefetchedMapData, layer).features as ExtendedFeature[];
-          
-          if (geoJsonFeatures && geoJsonFeatures.length > 0) {
-            setMapData(geoJsonFeatures.map(f => ({
-              ...f,
-              properties: {
-                ...f.properties,
-                id: String(f.id || f.properties?.id || f.properties?.name || f.rsmKey || Math.random()),
-                type: 'District', // Assuming these are districts
-                name: f.properties?.name || f.properties?.DIST_EN || f.properties?.ADM1_EN || "Unknown District",
-                link: `/districts?name=${encodeURIComponent(f.properties?.name || f.properties?.DIST_EN || f.properties?.ADM1_EN || "Unknown District")}`
-              }
-            })));
-          } else {
-            throw new Error("Failed to extract features from prefetched TopoJSON.");
-          }
-        } catch (err) {
-          const errorMsg = err instanceof Error ? err.message : "An unknown error occurred while processing prefetched map data.";
-          console.error("HomepageMap: Error processing prefetched map data -", errorMsg, err);
-          setFetchError(`Map Error: Could not process prefetched map data. ${errorMsg}`);
-          setMapData(null);
-        } finally {
-          setIsLoadingMapGeometry(false);
-        }
-        return;
-      }
-      
-      console.log("HomepageMap: Prefetched map data not available, fetching from URL:", NEPAL_GEO_URL);
       try {
-        const geoRes = await fetch(NEPAL_GEO_URL);
-        if (!geoRes.ok) {
-          const errorText = await geoRes.text();
-          throw new Error(`Failed to fetch map data from ${NEPAL_GEO_URL}: ${geoRes.status} ${geoRes.statusText}. Response: ${errorText.substring(0, 200)}...`);
-        }
-        const rawMapData: Topology = await geoRes.json();
-        console.log("HomepageMap: Raw map data fetched successfully. Objects keys:", Object.keys(rawMapData.objects || {}));
+        let rawMapData: Topology | null = prefetchedMapData;
 
-        if (rawMapData.objects && rawMapData.objects[TOPOJSON_OBJECT_KEY]) {
+        if (!rawMapData) {
+          console.log("HomepageMap: Prefetched map data not available, fetching from URL:", NEPAL_GEO_URL);
+          const geoRes = await fetch(NEPAL_GEO_URL);
+          if (!geoRes.ok) {
+            const errorText = await geoRes.text();
+            throw new Error(`Failed to fetch map data from ${NEPAL_GEO_URL}: ${geoRes.status} ${geoRes.statusText}. Response: ${errorText.substring(0,200)}...`);
+          }
+          rawMapData = await geoRes.json() as Topology;
+          console.log("HomepageMap: TopoJSON fetched successfully. Parsed data sample:", JSON.stringify(rawMapData, null, 2).substring(0, 300) + "...");
+        } else {
+          console.log("HomepageMap: Using prefetched map data.");
+        }
+
+        if (rawMapData && rawMapData.objects && rawMapData.objects[TOPOJSON_OBJECT_KEY]) {
           const layer = rawMapData.objects[TOPOJSON_OBJECT_KEY];
-          // @ts-ignore
-          const geoJsonFeatures = topojsonFeature(rawMapData, layer).features as ExtendedFeature[];
+          // @ts-ignore topojson-client types can be tricky with specific TopoJSON structures
+          const geoJsonFeatures = topojsonFeature(rawMapData, layer!).features as ExtendedFeature[];
           
           if (geoJsonFeatures && geoJsonFeatures.length > 0) {
-             setMapData(geoJsonFeatures.map(f => ({
+            const processedFeatures = geoJsonFeatures.map((f, index) => ({
               ...f,
               properties: {
                 ...f.properties,
-                id: String(f.id || f.properties?.id || f.properties?.name || f.rsmKey || Math.random()),
+                id: String(f.id || f.properties?.id || f.properties?.name || f.rsmKey || `district-${index}`),
                 type: 'District',
                 name: f.properties?.name || f.properties?.DIST_EN || f.properties?.ADM1_EN || "Unknown District",
                 link: `/districts?name=${encodeURIComponent(f.properties?.name || f.properties?.DIST_EN || f.properties?.ADM1_EN || "Unknown District")}`
               }
-            })));
+            })) as ExtendedFeature[];
+            setMapData(processedFeatures);
           } else {
-            throw new Error(`Failed to extract features from TopoJSON layer '${TOPOJSON_OBJECT_KEY}'.`);
+            throw new Error(`Failed to extract or convert valid geometries from TopoJSON layer '${TOPOJSON_OBJECT_KEY}' in ${NEPAL_GEO_URL}. The layer might be empty or malformed.`);
           }
         } else {
-          throw new Error(`Invalid TopoJSON structure: Layer object for key '${TOPOJSON_OBJECT_KEY}' is missing.`);
+          throw new Error(`Invalid map data structure in ${NEPAL_GEO_URL}. Expected TopoJSON with an 'objects.${TOPOJSON_OBJECT_KEY}' property. Received: ${JSON.stringify(rawMapData).substring(0,200)}...`);
         }
       } catch (err) {
         const errorMsg = err instanceof Error ? err.message : "An unknown error occurred while loading map data.";
         console.error("HomepageMap: Error in fetchData -", errorMsg, err);
-        setFetchError(`Map Error: ${errorMsg}. Please ensure '${NEPAL_GEO_URL}' is valid and accessible.`);
+        setFetchError(errorMsg);
         setMapData(null);
       } finally {
         setIsLoadingMapGeometry(false);
@@ -143,144 +114,112 @@ export function HomepageMap({ initialMapData: prefetchedMapData }: HomepageMapPr
     fetchData();
   }, [prefetchedMapData]);
 
-
   // Effect to fetch details when a feature is selected
   useEffect(() => {
-    if (selectedFeatureInfo?.feature) {
-      const featureId = selectedFeatureInfo.feature.id;
-      const featureType = selectedFeatureInfo.feature.type;
-      const featureName = selectedFeatureInfo.feature.name;
+    if (!selectedFeatureInfo?.feature) {
+      return;
+    }
 
-      // Check cache first
-      if (detailsCache[featureId] && (detailsCache[featureId].description || detailsCache[featureId].aiDescription)) {
-        // Details already in cache, no need to fetch unless specifically forced
-        // For AI description, we might want to re-fetch if it wasn't loaded successfully before
-        if (featureType === 'District' && !detailsCache[featureId].aiDescription && !detailsCache[featureId].isLoadingAI) {
-          // Fallthrough to fetch AI description
-        } else {
-          return; // Already have what we need or it's loading
-        }
-      }
+    const { id: featureId, type: featureType, name: featureName } = selectedFeatureInfo.feature;
 
-      setDetailsCache(prev => ({
-        ...prev,
-        [featureId]: { ...prev[featureId], isLoadingFirestore: true, isLoadingAI: featureType === 'District' }
-      }));
+    const currentCacheEntry = detailsCache[featureId];
+    const alreadyLoadingFirestore = currentCacheEntry?.isLoadingFirestore;
+    const alreadyLoadingAI = currentCacheEntry?.isLoadingAI;
+    const hasFirestoreData = !!currentCacheEntry?.description; 
+    const hasAIData = !!currentCacheEntry?.aiDescription;
 
-      // Simulate Firestore fetch for details (population, description)
-      // In a real app, replace this with actual Firestore calls:
-      // e.g., const docRef = doc(db, featureType === 'District' ? 'nepal_provinces_data' : 'nepal_major_cities_data', featureId);
-      // const docSnap = await getDoc(docRef);
-      // if (docSnap.exists()) { ... }
-      setTimeout(() => { // Simulating async fetch
-        const mockFirestoreDetails = {
-          population: selectedFeatureInfo.feature.population || Math.floor(Math.random() * 1000000) + 50000,
-          description: selectedFeatureInfo.feature.description || (featureType === 'District' ? `Explore the unique landscapes and culture of ${featureName}.` : `Discover ${featureName}, a vibrant city in Nepal.`)
+    const needsFirestoreFetch = !hasFirestoreData && !alreadyLoadingFirestore;
+    const needsAIFetch = featureType === 'District' && !hasAIData && !alreadyLoadingAI;
+
+    if (!needsFirestoreFetch && !needsAIFetch) {
+      return;
+    }
+
+    // Update loading states once at the beginning of fetches
+    if (needsFirestoreFetch || needsAIFetch) {
+      setDetailsCache(prev => {
+        const existingEntry = prev[featureId] || {};
+        return {
+          ...prev,
+          [featureId]: {
+            ...existingEntry,
+            isLoadingFirestore: needsFirestoreFetch ? true : existingEntry.isLoadingFirestore,
+            isLoadingAI: needsAIFetch ? true : existingEntry.isLoadingAI,
+          }
         };
-        
+      });
+    }
+
+    // Simulate Firestore Fetch (Replace with actual Firebase calls)
+    if (needsFirestoreFetch) {
+      console.log(`HomepageMap: Simulating Firestore details fetch for ${featureName} (${featureId})`);
+      setTimeout(() => {
+        const mockFirestoreDetails = {
+          population: selectedFeatureInfo.feature.population || Math.floor(Math.random() * 500000) + 50000,
+          description: selectedFeatureInfo.feature.description || 
+                       (featureType === 'District' 
+                         ? `Discover ${featureName}, known for its unique culture and stunning natural beauty.` 
+                         : `Explore ${featureName}, a key city in Nepal offering diverse experiences.`),
+        };
+        console.log(`HomepageMap: Firestore details received for ${featureName}`, mockFirestoreDetails);
         setDetailsCache(prev => ({
           ...prev,
           [featureId]: { ...prev[featureId], ...mockFirestoreDetails, isLoadingFirestore: false }
         }));
-      }, 500);
+      }, 700);
+    }
 
-
-      if (featureType === 'District') {
-        getDistrictDescription({ districtName: featureName })
-          .then(result => {
-            setDetailsCache(prev => ({
-              ...prev,
-              [featureId]: { ...prev[featureId], aiDescription: result.description, isLoadingAI: false }
-            }));
-          })
-          .catch(err => {
-            console.error(`Error fetching AI description for ${featureName}:`, err);
-            toast({
-              title: "AI Description Error",
-              description: `Could not fetch AI insights for ${featureName}.`,
-              variant: "destructive",
-            });
-            setDetailsCache(prev => ({
-              ...prev,
-              [featureId]: { ...prev[featureId], aiDescription: null, isLoadingAI: false }
-            }));
+    if (needsAIFetch && featureType === 'District') {
+      console.log(`HomepageMap: Fetching AI description for district: ${featureName}`);
+      getDistrictDescription({ districtName: featureName })
+        .then(result => {
+          console.log(`HomepageMap: AI description received for ${featureName}: "${result.description}"`);
+          setDetailsCache(prev => ({
+            ...prev,
+            [featureId]: { ...prev[featureId], aiDescription: result.description, isLoadingAI: false }
+          }));
+        })
+        .catch(err => {
+          console.error(`Error fetching AI description for ${featureName}:`, err);
+          toast({
+            title: "AI Description Error",
+            description: `Could not fetch AI insights for ${featureName}. Displaying default.`,
+            variant: "default",
           });
-      }
+          setDetailsCache(prev => ({
+            ...prev,
+            [featureId]: { ...prev[featureId], aiDescription: null, isLoadingAI: false }
+          }));
+        });
     }
-  }, [selectedFeatureInfo, detailsCache, toast]);
-
-
-  // Effect to position the info box
-  useEffect(() => {
-    if (selectedFeatureInfo && mapContainerRef.current) {
-      const { clientX, clientY } = selectedFeatureInfo;
-      const mapRect = mapContainerRef.current.getBoundingClientRect();
-      
-      const infoBoxWidth = 256; // Tailwind w-64
-      const infoBoxHeight = 200; // Approximate height, adjust as needed
-
-      let newLeft = clientX + 15; // Offset from cursor
-      let newTop = clientY + 15;
-      let transform = '';
-
-      // Adjust if too close to right edge of viewport
-      if (clientX + infoBoxWidth + 15 > window.innerWidth) {
-        newLeft = clientX - 15;
-        transform = 'translateX(-100%)';
-      }
-
-      // Adjust if too close to bottom edge of viewport
-      if (clientY + infoBoxHeight + 15 > window.innerHeight) {
-        newTop = clientY - 15; // Place above cursor
-        transform += transform ? ' translateY(-100%)' : 'translateY(-100%)';
-      } else {
-         transform += transform ? ' translateY(0%)' : 'translateY(0%)'; // Explicitly set for consistency
-      }
-      
-      // Ensure it doesn't go off the top or left
-      if (newTop < 5) newTop = 5; // Minimum 5px from top
-      if (newLeft < 5 && !transform.includes('translateX(-100%)')) newLeft = 5;
-      if (newLeft - infoBoxWidth < 5 && transform.includes('translateX(-100%)')) newLeft = 5 + infoBoxWidth;
-
-
-      setInfoBoxStyle({
-        left: `${newLeft}px`,
-        top: `${newTop}px`,
-        visibility: 'visible',
-        transform: transform.trim() || undefined,
-      });
-    } else {
-      setInfoBoxStyle({ visibility: 'hidden', left: '0px', top: '0px' });
-    }
-  }, [selectedFeatureInfo]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selectedFeatureInfo, toast]); // REMOVED detailsCache from dependency array
 
 
   const handleFeatureClick = useCallback((
-    featureProps: ExtendedFeatureProperties,
+    featureProps: Partial<ExtendedProperties['feature']>, // Allow partial to handle direct TopoJSON props
     featureType: 'District' | 'City',
     event: React.MouseEvent<SVGPathElement | SVGGElement>
   ) => {
-    event.stopPropagation(); // Prevent map click from closing info box immediately
+    event.stopPropagation();
     const { clientX, clientY } = event;
 
-    const featureId = String(featureProps.id || featureProps.rsmKey || featureProps.name); 
-    const displayName = featureProps.name || "Unknown Feature";
+    const districtName = featureProps.name || "Unknown Feature";
+    const featureId = String(featureProps.id || (featureProps as any).OBJECTID || districtName + Math.random()); 
     
-    console.log(`${featureType} Clicked:`, displayName, "clientX:", clientX, "clientY:", clientY, "Feature ID:", featureId);
+    const featureData: ExtendedProperties['feature'] = {
+      id: featureId,
+      name: districtName,
+      type: featureType,
+      population: featureProps.population,
+      description: featureProps.description,
+      link: featureProps.link || (featureType === 'District' ? `/districts?name=${encodeURIComponent(districtName)}` : undefined),
+      originalProperties: featureType === 'District' ? featureProps : undefined,
+    };
     
-    setSelectedFeatureInfo({
-      feature: {
-        id: featureId,
-        name: displayName,
-        type: featureType,
-        link: featureProps.link || (featureType === 'District' ? `/districts?name=${encodeURIComponent(displayName)}` : undefined),
-        population: featureProps.population,
-        description: featureProps.description, // Initial description from TopoJSON/majorCities
-        originalProperties: featureType === 'District' ? featureProps : undefined,
-      },
-      clientX,
-      clientY,
-    });
+    console.log(`${featureType} Clicked:`, districtName, "Event clientX:", clientX, "clientY:", clientY, "Feature Data:", featureData);
+    setSelectedFeatureInfo({ feature: featureData, clientX, clientY });
+
   }, []);
 
 
@@ -289,10 +228,45 @@ export function HomepageMap({ initialMapData: prefetchedMapData }: HomepageMapPr
   }, []);
   
   const handleMapClick = useCallback(() => {
-      if (selectedFeatureInfo) { // Only close if an info box is open
+      if (selectedFeatureInfo) { 
+          console.log("HomepageMap: Map background clicked, closing info box.");
           handleCloseInfoBox();
       }
   },[selectedFeatureInfo, handleCloseInfoBox]);
+
+  useEffect(() => {
+    if (selectedFeatureInfo && mapContainerRef.current) {
+      const { clientX, clientY } = selectedFeatureInfo;
+      
+      const infoBoxWidth = 256; // Tailwind w-64
+      const infoBoxHeight = 220; // Approximate height for Card with description
+
+      let newLeft = clientX + 15;
+      let newTop = clientY + 15;
+      let transform = '';
+
+      if (mapContainerRef.current) { // Check if ref is available
+        const mapRect = mapContainerRef.current.getBoundingClientRect();
+        // Use window.innerWidth/Height for fixed positioning checks
+        if (clientX + infoBoxWidth + 15 > window.innerWidth) {
+          newLeft = clientX - 15;
+          transform = 'translateX(calc(-100% - 30px))'; // Shift left of cursor
+        }
+        if (clientY + infoBoxHeight + 15 > window.innerHeight) {
+          newTop = clientY - infoBoxHeight - 15; // Place above cursor
+        }
+      }
+      
+      setInfoBoxStyle({
+        left: `${newLeft}px`,
+        top: `${newTop}px`,
+        visibility: 'visible',
+        transform: transform || undefined,
+      });
+    } else {
+      setInfoBoxStyle(prev => ({ ...prev, visibility: 'hidden' }));
+    }
+  }, [selectedFeatureInfo]);
 
 
   let displayErrorMessage = fetchError;
@@ -301,12 +275,13 @@ export function HomepageMap({ initialMapData: prefetchedMapData }: HomepageMapPr
   }
   
   if (displayErrorMessage || !mapData) {
+    console.error("HomepageMap: Rendering error component. fetchError:", displayErrorMessage, "mapData valid:", !!mapData);
     return (
       <div className="aspect-[16/9] w-full bg-red-100 dark:bg-red-900/30 rounded-lg flex flex-col items-center justify-center text-red-700 dark:text-red-300 p-4 text-center">
          <InfoIcon className="h-10 w-10 mb-2" />
         <p className="font-semibold text-lg mb-1">Map Display Error</p>
         <p className="text-sm">
-          {displayErrorMessage || "An unexpected error occurred while loading map data."}
+          {displayErrorMessage || "An unexpected error occurred."}
           {(fetchError?.includes("offline") || fetchError?.includes("Firebase") || fetchError?.includes("Failed to get document")) && (
             <span className="block mt-1 text-xs">This might be due to Firebase configuration issues (check `.env.local` or hosting environment variables) or network problems.</span>
           )}
@@ -317,9 +292,12 @@ export function HomepageMap({ initialMapData: prefetchedMapData }: HomepageMapPr
   
   if (isLoadingMapGeometry) {
     return (
-      <div className="aspect-[16/9] w-full h-full bg-muted/10 rounded-xl flex items-center justify-center">
-        <Skeleton className="h-full w-full" />
-        <p className="absolute text-primary font-semibold">Loading Interactive Map of Nepal...</p>
+      <div className="aspect-[16/9] w-full h-full bg-transparent rounded-xl flex items-center justify-center">
+        <Skeleton className="h-full w-full bg-muted/50" />
+        <div className="absolute text-center">
+            <Loader2 className="h-8 w-8 md:h-10 md:w-10 text-primary animate-spin mx-auto mb-2" />
+            <p className="text-primary font-semibold text-sm md:text-base">Loading Interactive Map of Nepal...</p>
+        </div>
       </div>
     );
   }
@@ -329,32 +307,30 @@ export function HomepageMap({ initialMapData: prefetchedMapData }: HomepageMapPr
   return (
     <div
       ref={mapContainerRef}
-      className="relative w-full h-full bg-lime-100 dark:bg-green-900/30 rounded-xl overflow-hidden border border-border cursor-default"
-      onClick={handleMapClick}
+      className="relative w-full h-full bg-transparent cursor-default" // Transparent to allow Hero section's bg-card to show
+      onClick={handleMapClick} // For closing info box
     >
-      {/* Debug Top Level State Info */}
-      {/* <div className="fixed top-2 left-2 bg-yellow-200 text-black p-2 z-[100000] text-xs">
-        DEBUG: Selected: {selectedFeatureInfo?.feature.name || "None"}
-        <br />
-        Coords: X:{selectedFeatureInfo?.clientX}, Y:{selectedFeatureInfo?.clientY}
-        <br/>
-        Style: L:{infoBoxStyle.left}, T:{infoBoxStyle.top}, V:{infoBoxStyle.visibility}
+      {/* Debug state indicator */}
+      {/* <div className="fixed top-0 left-0 bg-yellow-300 text-black p-1 text-xs z-[100000]">
+        Selected: {selectedFeatureInfo?.feature.name || 'None'} | Cache: {JSON.stringify(currentSelectedCache)}
       </div> */}
       <ComposableMap
         projection="geoMercator"
         projectionConfig={{
-          scale: 4000, 
+          scale: 4000, // Increased scale
           center: [84.1240, 28.3949] 
         }}
         className="w-full h-full"
         aria-label="Interactive map of Nepal showing districts and key cities"
       >
         <ZoomableGroup center={[84.1240, 28.3949]} zoom={1}>
-          {/* Geographies for Districts */}
-          <Geographies geography={mapData}>
+          {/* Geographies for Provinces/Districts */}
+          <Geographies 
+            geography={mapData} 
+          >
             {({ geographies }) =>
               geographies.map(geo => {
-                const properties = geo.properties as ExtendedFeatureProperties; 
+                const properties = geo.properties as ExtendedProperties['feature'];
                 const districtName = properties?.name || "Unknown District";
                 const geoIdForSelection = String(geo.rsmKey || properties.id || districtName);
                 
@@ -364,7 +340,7 @@ export function HomepageMap({ initialMapData: prefetchedMapData }: HomepageMapPr
 
                 return (
                   <Geography
-                    key={geo.rsmKey || properties.id || districtName + Math.random()} 
+                    key={geoIdForSelection} 
                     geography={geo}
                     onClick={(event) => handleFeatureClick(properties, 'District', event as unknown as React.MouseEvent<SVGPathElement>)}
                     className={cn(
@@ -379,19 +355,20 @@ export function HomepageMap({ initialMapData: prefetchedMapData }: HomepageMapPr
               })
             }
           </Geographies>
-           {/* Geographies for Labels */}
+          {/* Geographies for Labels */}
           <Geographies geography={mapData}>
             {({ geographies }) =>
               geographies.map(geo => {
-                const properties = geo.properties as ExtendedFeatureProperties;
+                const properties = geo.properties as ExtendedProperties['feature'];
                 const districtName = properties?.name;
-                const centroid = (geo as any).centroid as [number, number] | undefined; // geo.centroid is populated by react-simple-maps
+                // @ts-ignore react-simple-maps populates centroid
+                const centroid = geo.centroid as [number, number] | undefined;
 
                 if (!centroid || !districtName) return null;
                 
                 let fontSize = 4;
                 if (["Kathmandu", "Kaski", "Morang", "Rupandehi"].includes(districtName)) fontSize = 5;
-
+                
                 return (
                   <Marker key={`label-${geo.rsmKey || properties.id || districtName + Math.random()}`} coordinates={centroid}>
                     <text
@@ -410,18 +387,20 @@ export function HomepageMap({ initialMapData: prefetchedMapData }: HomepageMapPr
               })
             }
           </Geographies>
+
           {/* Major Cities Markers */}
           {majorCities.map((city) => {
             const isSelected = selectedFeatureInfo?.feature.type === 'City' && selectedFeatureInfo?.feature.id === city.id;
             let labelFontSize = 5;
-            if (["Kathmandu", "Pokhara", "Lumbini"].includes(city.name)) labelFontSize = 7;
-            if (city.name === "Kathmandu") labelFontSize = 9;
+            if (["Kathmandu", "Pokhara", "Lumbini"].includes(city.name)) labelFontSize = 6;
+            if (city.name === "Kathmandu") labelFontSize = 7;
+
 
             return (
               <Marker
                 key={city.id}
                 coordinates={city.coordinates}
-                onClick={(event) => handleFeatureClick(city as unknown as ExtendedFeatureProperties, 'City', event as unknown as React.MouseEvent<SVGGElement>)}
+                onClick={(event) => handleFeatureClick(city, 'City', event as unknown as React.MouseEvent<SVGGElement>)}
               >
                  <g
                   className={cn(
@@ -430,7 +409,7 @@ export function HomepageMap({ initialMapData: prefetchedMapData }: HomepageMapPr
                   )}
                 >
                   <circle
-                    r={isSelected ? 6 : 4} 
+                    r={isSelected ? 5 : 3} 
                     className={cn(
                       isSelected ? "fill-accent stroke-accent-foreground" : "fill-primary stroke-primary-foreground group-hover:fill-accent/80 group-hover:stroke-accent-foreground"
                     )}
@@ -438,7 +417,7 @@ export function HomepageMap({ initialMapData: prefetchedMapData }: HomepageMapPr
                   />
                   <text
                     textAnchor="middle"
-                    y={isSelected ? -9 : -7} 
+                    y={isSelected ? -8 : -6} 
                     fontSize={labelFontSize}
                     className={cn(
                       "select-none pointer-events-none transition-opacity duration-150 font-semibold",
@@ -455,16 +434,18 @@ export function HomepageMap({ initialMapData: prefetchedMapData }: HomepageMapPr
         </ZoomableGroup>
       </ComposableMap>
 
+      {/* Info Box Card */}
       {selectedFeatureInfo && (
         <Card
           style={infoBoxStyle}
           className={cn(
-            "fixed p-0 shadow-2xl border border-border bg-card text-card-foreground rounded-lg transition-all duration-200 ease-out text-xs",
-            "w-56 sm:w-60 md:w-64 max-h-[250px] flex flex-col overflow-hidden z-[60]" // ensure z-index is high
+            "fixed p-0 shadow-2xl border border-border bg-card text-card-foreground rounded-lg transition-all duration-200 ease-out z-[9999]",
+            "w-56 sm:w-60 md:w-64 flex flex-col overflow-hidden", // Max height handled by scroll area
+            infoBoxStyle.visibility === 'visible' ? 'opacity-100 scale-100' : 'opacity-0 scale-95 pointer-events-none'
           )}
-          onClick={(e) => e.stopPropagation()} // Prevent map click from closing it
+          onClick={(e) => e.stopPropagation()}
         >
-          <CardHeader className="flex flex-row items-start justify-between p-2.5 space-y-0 border-b bg-muted/50 rounded-t-lg">
+          <CardHeader className="flex flex-row items-start justify-between p-2.5 space-y-0 border-b bg-muted/30 rounded-t-lg">
             <div className="space-y-0.5">
               <CardTitle className="text-sm md:text-base font-bold leading-tight flex items-center text-primary">
                 <MapPin className="w-3.5 h-3.5 mr-1.5 flex-shrink-0 text-primary/80" />
@@ -475,24 +456,22 @@ export function HomepageMap({ initialMapData: prefetchedMapData }: HomepageMapPr
               <XIcon className="w-3.5 h-3.5" />
             </Button>
           </CardHeader>
-          <CardContent className="p-2.5 text-xs md:text-sm space-y-1.5 overflow-y-auto flex-grow scrollbar-thin scrollbar-thumb-muted scrollbar-track-transparent max-h-28">
+          <CardContent className="p-2.5 text-xs md:text-sm space-y-1.5 overflow-y-auto flex-grow scrollbar-thin scrollbar-thumb-muted scrollbar-track-transparent max-h-24">
             {currentSelectedCache?.isLoadingFirestore || (selectedFeatureInfo.feature.type === 'District' && currentSelectedCache?.isLoadingAI) ? (
               <div className="flex items-center text-muted-foreground">
                 <Loader2 className="h-3.5 w-3.5 mr-1.5 animate-spin" />
                 Loading details...
               </div>
             ) : (
-              <>
-                <p className="text-muted-foreground line-clamp-4">
-                  {selectedFeatureInfo.feature.type === 'District' && currentSelectedCache?.aiDescription
-                    ? currentSelectedCache.aiDescription
-                    : currentSelectedCache?.description || selectedFeatureInfo.feature.description || `Explore ${selectedFeatureInfo.feature.name}, a notable area in Nepal.`
-                  }
-                </p>
-                {currentSelectedCache?.population && (
-                    <p className="text-muted-foreground/80 mt-1.5 text-[10px] md:text-xs">Population: {Number(currentSelectedCache.population).toLocaleString()}</p>
-                )}
-              </>
+              <p className="text-muted-foreground line-clamp-4">
+                {selectedFeatureInfo.feature.type === 'District' && currentSelectedCache?.aiDescription
+                  ? currentSelectedCache.aiDescription
+                  : currentSelectedCache?.description || selectedFeatureInfo.feature.description || `Explore ${selectedFeatureInfo.feature.name}, a captivating part of Nepal.`
+                }
+              </p>
+            )}
+             {currentSelectedCache?.population && (
+                <p className="text-muted-foreground/80 mt-1.5 text-[10px] md:text-xs">Population: {Number(currentSelectedCache.population).toLocaleString()}</p>
             )}
           </CardContent>
           {selectedFeatureInfo.feature.link && (
@@ -513,12 +492,20 @@ export function HomepageMap({ initialMapData: prefetchedMapData }: HomepageMapPr
           )}
         </Card>
       )}
-      {(currentSelectedCache?.isLoadingFirestore || (selectedFeatureInfo?.feature.type === 'District' && currentSelectedCache?.isLoadingAI)) && !isLoadingMapGeometry && (
+      {/* Loading indicator for details when a feature is selected but details are still fetching */}
+      {currentSelectedCache?.isLoadingFirestore && !isLoadingMapGeometry && (
           <div className="absolute bottom-2 right-2 p-1.5 px-2 bg-muted/80 text-muted-foreground text-[10px] rounded-md flex items-center gap-1.5 z-50">
-              <Loader2 className="h-2.5 w-2.5 animate-spin" />
-              <span>Fetching details...</span>
+              <Loader2 className="h-3 w-3 animate-spin" />
+              Loading details...
+          </div>
+      )}
+       {currentSelectedCache?.isLoadingAI && !isLoadingMapGeometry && (
+          <div className="absolute bottom-2 right-2 p-1.5 px-2 bg-muted/80 text-muted-foreground text-[10px] rounded-md flex items-center gap-1.5 z-50">
+              <Loader2 className="h-3 w-3 animate-spin" />
+              AI thinking...
           </div>
       )}
     </div>
   );
 }
+
