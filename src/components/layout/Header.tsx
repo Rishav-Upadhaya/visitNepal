@@ -1,8 +1,10 @@
+
 import Link from 'next/link';
-import { MapPinned, Route, Search, Menu, Mountain, Home } from 'lucide-react'; // Removed LogIn
+import { MapPinned, Route, Search, Menu, Mountain, Home } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Sheet, SheetContent, SheetTrigger, SheetClose } from '@/components/ui/sheet';
 import { Separator } from '@/components/ui/separator';
+import { logUserEvent } from '@/lib/logger'; // Import the logger
 
 const navItems = [
   { href: '/', label: 'Home', icon: Home },
@@ -11,10 +13,18 @@ const navItems = [
 ];
 
 export function Header() {
+  const handleNavClick = (label: string, href: string) => {
+    logUserEvent({ eventName: 'NavClick', eventData: { label, href } });
+  };
+
+  const handleStartPlanningClick = () => {
+    logUserEvent({ eventName: 'HeaderStartPlanningClick', eventData: { target: '/plan-trip' } });
+  };
+
   return (
     <header className="sticky top-0 z-50 w-full border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
       <div className="container flex h-20 items-center justify-between">
-        <Link href="/" className="flex items-center gap-2" prefetch={true}>
+        <Link href="/" className="flex items-center gap-2" prefetch={true} onClick={() => handleNavClick('Logo', '/')}>
           <Mountain className="h-8 w-8 text-primary" />
           <span className="text-2xl font-bold tracking-tight text-primary">Visit Nepal</span>
         </Link>
@@ -25,7 +35,8 @@ export function Header() {
               key={item.label}
               href={item.href}
               className="transition-colors hover:text-accent flex items-center gap-1.5"
-              prefetch={true} // Explicitly enable prefetching
+              prefetch={true}
+              onClick={() => handleNavClick(item.label, item.href)}
             >
                <item.icon className="h-4 w-4" />
               {item.label}
@@ -34,9 +45,8 @@ export function Header() {
         </nav>
 
         <div className="hidden md:flex items-center space-x-4">
-          {/* Removed Sign In Button */}
           <Button variant="default" className="bg-accent hover:bg-accent/90 text-accent-foreground" asChild>
-            <Link href="/plan-trip" prefetch={true}>
+            <Link href="/plan-trip" prefetch={true} onClick={handleStartPlanningClick}>
               <Search className="mr-2 h-4 w-4" />
               Start Planning
             </Link>
@@ -53,10 +63,11 @@ export function Header() {
               </Button>
             </SheetTrigger>
             <SheetContent side="right" className="w-[300px] sm:w-[320px] bg-background p-0">
+              <SheetPrimitive.Title className="sr-only">Mobile Navigation Menu</SheetPrimitive.Title>
               <div className="flex h-full flex-col">
                 <div className="p-6 border-b">
                   <SheetClose asChild>
-                    <Link href="/" className="flex items-center gap-2">
+                    <Link href="/" className="flex items-center gap-2" onClick={() => handleNavClick('MobileLogo', '/')}>
                       <Mountain className="h-8 w-8 text-primary" />
                       <span className="text-xl font-bold text-primary">Visit Nepal</span>
                     </Link>
@@ -68,6 +79,7 @@ export function Header() {
                         <Link
                         href={item.href}
                         className="flex items-center gap-3 rounded-md px-3 py-3 text-lg font-medium transition-colors hover:bg-muted hover:text-primary"
+                        onClick={() => handleNavClick(`Mobile${item.label}`, item.href)}
                         >
                         <item.icon className="h-5 w-5 text-primary" />
                         {item.label}
@@ -77,10 +89,9 @@ export function Header() {
                 </nav>
                 <Separator />
                 <div className="p-4 space-y-3">
-                    {/* Removed Sign In Button from mobile menu */}
                     <SheetClose asChild>
                         <Button variant="default" className="bg-accent hover:bg-accent/90 text-accent-foreground w-full" asChild>
-                            <Link href="/plan-trip">
+                            <Link href="/plan-trip" onClick={handleStartPlanningClick}>
                             <Search className="mr-2 h-4 w-4" />
                             Start Planning
                             </Link>
@@ -95,3 +106,6 @@ export function Header() {
     </header>
   );
 }
+
+// Need to import SheetPrimitive for the SheetTitle to be recognized by the linter
+import * as SheetPrimitive from "@radix-ui/react-dialog";
