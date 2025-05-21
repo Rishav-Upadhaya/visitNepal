@@ -1,4 +1,6 @@
+
 // Contains shared types and constants for the application.
+import type { Topology, Objects, GeometryCollection, Geometry } from 'topojson-client';
 
 export interface ItineraryDay {
   day: number;
@@ -78,83 +80,78 @@ export const budgetRanges = {
 export type BudgetRangeKey = keyof typeof budgetRanges;
 export type BudgetRangeLabel = typeof budgetRanges[BudgetRangeKey];
 
-// GeoJSON types from @types/geojson
-export type GeoJsonGeometryTypes = GeoJSON.Geometry['type'];
-export type Bbox = [number, number, number, number] | [number, number, number, number, number, number];
-export type Position = number[]; // [longitude, latitude, ?altitude]
+// GeoJSON types (simplified for use with react-simple-maps and our data)
+export declare namespace GeoJSON {
+  export type GeoJsonTypes = "FeatureCollection" | "Feature" | "Point" | "MultiPoint" | "LineString" | "MultiLineString" | "Polygon" | "MultiPolygon" | "GeometryCollection";
+  export type Bbox = [number, number, number, number] | [number, number, number, number, number, number];
+  export type Position = number[]; // [longitude, latitude, ?altitude]
 
-export interface Geometry {
-  type: "Point" | "MultiPoint" | "LineString" | "MultiLineString" | "Polygon" | "MultiPolygon" | "GeometryCollection";
-  bbox?: Bbox;
-  coordinates?: any;
-  geometries?: Geometry[];
-}
-export interface Point extends Geometry { type: "Point"; coordinates: Position; }
-export interface MultiPoint extends Geometry { type: "MultiPoint"; coordinates: Position[];}
-export interface LineString extends Geometry { type: "LineString"; coordinates: Position[]; }
-export interface MultiLineString extends Geometry { type: "MultiLineString"; coordinates: Position[][]; }
-export interface Polygon extends Geometry { type: "Polygon"; coordinates: Position[][]; }
-export interface MultiPolygon extends Geometry { type: "MultiPolygon"; coordinates: Position[][][]; }
+  export interface GeoJsonObject { type: GeoJsonTypes; bbox?: Bbox; }
+  export interface GeometryObject extends GeoJsonObject { }
+  export interface Point extends GeometryObject { type: "Point"; coordinates: Position; }
+  export interface MultiPoint extends GeometryObject { type: "MultiPoint"; coordinates: Position[]; }
+  export interface LineString extends GeometryObject { type: "LineString"; coordinates: Position[]; }
+  export interface MultiLineString extends GeometryObject { type: "MultiLineString"; coordinates: Position[][]; }
+  export interface Polygon extends GeometryObject { type: "Polygon"; coordinates: Position[][]; }
+  export interface MultiPolygon extends GeometryObject { type: "MultiPolygon"; coordinates: Position[][][]; }
+  export interface GeometryCollection extends GeometryObject { type: "GeometryCollection"; geometries: Array<Geometry>; }
+  export type Geometry = Point | MultiPoint | LineString | MultiLineString | Polygon | MultiPolygon | GeometryCollection;
 
-export interface GeometryCollection extends Geometry {
-  type: "GeometryCollection";
-  geometries: Array<Geometry>;
-}
-
-export interface Feature<G extends Geometry | null = Geometry, P = any> {
-  type: "Feature";
-  geometry: G;
-  id?: string | number;
-  properties: P;
-  bbox?: Bbox;
+  export interface Feature<G extends Geometry | null = Geometry, P = any> extends GeoJsonObject {
+    type: "Feature";
+    geometry: G;
+    id?: string | number;
+    properties: P;
+  }
+  export interface FeatureCollection<G extends Geometry | null = Geometry, P = any> extends GeoJsonObject {
+    type: "FeatureCollection";
+    features: Array<Feature<G, P>>;
+  }
 }
 
-export interface FeatureCollection<G extends Geometry | null = Geometry, P = any> {
-  type: "FeatureCollection";
-  features: Array<Feature<G, P>>;
-  bbox?: Bbox;
-}
-
-export type GeoJsonObject = Geometry | Feature | FeatureCollection;
-
-
-// Specific types for your map components
-export interface DistrictProperties { // General properties for a district/province feature
+// For Leaflet map (InteractiveDistrictMap)
+export interface DistrictProperties {
   name: string;
   learnMoreUrl: string;
   description?: string;
-  id?: string | number;
-  [key: string]: any;
+  id?: string | number; // Optional, can be derived from Firestore doc ID
+  [key: string]: any; // Allow other properties
+}
+export interface DistrictFeature extends GeoJSON.Feature<GeoJSON.Polygon | GeoJSON.MultiPolygon, DistrictProperties> {}
+
+
+// For HomepageMap (react-simple-maps)
+export interface ExtendedFeatureProperties {
+  id: string; // Should be unique (e.g., rsmKey or derived unique ID)
+  name: string;
+  type: 'District' | 'City';
+  description?: string; // This can be the initial description from TopoJSON/majorCities
+  population?: number;
+  link?: string;
+  originalProperties?: any; // Store original TopoJSON properties if needed
+  // Coordinates only for cities, districts get it from geometry
+  coordinates?: [number, number];
 }
 
-// Type for features used in HomepageMap (derived from TopoJSON)
-export interface ExtendedFeature extends Feature<Polygon | MultiPolygon, any> {
-  properties: {
-    id: string;
-    name: string;
-    type: 'District' | 'City';
-    description?: string;
-    population?: number;
-    link?: string;
-    [key: string]: any;
-  };
-  rsmKey?: string;
+// Represents a GeoJSON feature after TopoJSON conversion for react-simple-maps
+export interface ExtendedFeature extends GeoJSON.Feature<GeoJSON.Polygon | GeoJSON.MultiPolygon, ExtendedFeatureProperties> {
+  rsmKey?: string; // react-simple-maps adds this
 }
 
-
-// For HomepageMap - Data shape for individual provinces/districts
-export interface ProvinceMapData { // This is used in the majorCities array in HomepageMap.tsx
+export interface HomepageMapProps {
+  initialMapData?: Topology | null;
+}
+export interface ProvinceMapData { // Used as base for info box, data primarily from TopoJSON properties initially
   id: string;
   name: string;
-  type: 'District';
-  population?: number;
+  type: 'District'; // Changed from Province to District
   description?: string;
+  population?: number;
   link?: string;
-  properties?: any; // Original properties from TopoJSON/GeoJSON can be stored here
+  originalProperties?: any;
 }
 
-// For HomepageMap - Data shape for individual cities
-export interface CityMapData {
+export interface CityMapData { // Used for majorCities array and info box
   id: string;
   name: string;
   type: 'City';
@@ -163,23 +160,18 @@ export interface CityMapData {
   description?: string;
   link?: string;
   highlight?: boolean;
-  iconUrl?: string; // Not currently used, but placeholder for custom icons
+  iconUrl?: string;
 }
 
-// Union type for selected features in HomepageMap info box
-export type ExtendedProperties = ProvinceMapData | CityMapData;
-
-
-// For InteractiveDistrictMap (Leaflet)
-export interface InteractiveMapDistrictProperties {
+// Union type for selected features in HomepageMap info box, now more detailed
+export type SelectedFeatureDetails = {
+  id: string;
   name: string;
-  learnMoreUrl: string;
-  description?: string;
-  // Add any other properties you expect from your Firestore GeoJSON Feature
-  [key: string]: any;
-}
-
-export interface InteractiveMapFeature extends Feature<Polygon | MultiPolygon, InteractiveMapDistrictProperties> {}
-
-export interface InteractiveMapFeatureCollection extends FeatureCollection<Polygon | MultiPolygon, InteractiveMapDistrictProperties> {}
-
+  type: 'District' | 'City';
+  link?: string;
+  // Details fetched on demand
+  population?: number | null;
+  description?: string | null; // Description from Firestore
+  aiDescription?: string | null; // AI-generated description
+  originalProperties?: any; // Original properties from TopoJSON or city data
+};
