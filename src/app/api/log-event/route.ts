@@ -22,8 +22,13 @@ export async function POST(request: NextRequest) {
     const logTimestamp = timestamp || new Date().toISOString();
     const logPath = path || 'N/A';
 
-    // Log to server console
-    console.log(`[USER_EVENT] Timestamp: ${logTimestamp} | Event: ${eventName} | Path: ${logPath} | Data: ${eventData ? JSON.stringify(eventData) : 'N/A'}`);
+    // Prepare eventData string for logging
+    const eventDataString = (eventData && Object.keys(eventData).length > 0)
+      ? JSON.stringify(eventData)
+      : 'None';
+
+    // Log to server console with the new refined format
+    console.log(`[USER_ACTION] ${eventName} { ${eventDataString} } on page ${logPath} at ${logTimestamp}`);
 
     return NextResponse.json({ message: 'Event logged successfully' }, { status: 200 });
   } catch (error) {

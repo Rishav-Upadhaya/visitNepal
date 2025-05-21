@@ -466,7 +466,7 @@ export function HomepageMap({ initialMapData }: HomepageMapProps) {
                 {currentSelectedCacheData?.isLoadingAI && selectedFeatureInfo.feature.type === 'District' && (
                      <div className="flex items-center text-muted-foreground text-[10px] md:text-[11px]">
                         <Loader2 className="h-3 w-3 mr-1.5 animate-spin" />
-                        AI is thinking...
+                        Loading...
                     </div>
                 )}
                 {currentSelectedCacheData?.aiDescription && selectedFeatureInfo.feature.type === 'District' && !currentSelectedCacheData.isLoadingAI && (
@@ -506,7 +506,6 @@ export function HomepageMap({ initialMapData }: HomepageMapProps) {
        {(currentSelectedCacheData?.isLoadingFirestore || currentSelectedCacheData?.isLoadingAI) && !isLoadingMapGeometry && (
           <div className="absolute bottom-2 right-2 p-2 bg-muted/80 text-muted-foreground text-xs rounded-md flex items-center gap-2 z-50">
               <Loader2 className="h-3 w-3 animate-spin" />
-              Loading details...
           </div>
       )}
     </div>
