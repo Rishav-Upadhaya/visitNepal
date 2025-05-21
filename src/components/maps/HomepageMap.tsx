@@ -108,7 +108,7 @@ export function HomepageMap() {
                     id: featureId,
                     name: districtName,
                     type: 'District',
-                    description: firestoreDetails.description || props?.description || `Discover ${districtName}, a unique district in Nepal.`,
+                    description: firestoreDetails.description || props?.description,
                     link: firestoreDetails.link || props?.link || `/districts?name=${encodeURIComponent(districtName)}`,
                     population: firestoreDetails.population || props?.population
                   }
@@ -202,7 +202,7 @@ export function HomepageMap() {
       name: displayName,
       type: featureType,
       population: featureProps?.population,
-      description: featureProps?.description || `Discover ${displayName}, a fascinating place in Nepal.`,
+      description: featureProps?.description,
       link: featureProps?.link || `/districts?name=${encodeURIComponent(displayName)}`,
       properties: featureType === 'District' ? featureProps : undefined,
     };
@@ -502,7 +502,6 @@ export function HomepageMap() {
       {isFetchingDescription && !isLoadingMapGeometry && (
           <div className="absolute bottom-2 right-2 p-2 bg-muted/80 text-muted-foreground text-xs rounded-md flex items-center gap-2 z-50">
               <Loader2 className="h-3 w-3 animate-spin" />
-              Loading details...
           </div>
       )}
     </div>
