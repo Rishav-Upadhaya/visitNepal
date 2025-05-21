@@ -15,7 +15,7 @@ const HomepageMapWithNoSSR = dynamic(
     loading: () => (
       <div className="aspect-[16/9] w-full h-full bg-muted/30 rounded-xl flex items-center justify-center">
         <Skeleton className="h-full w-full" />
-        <p className="absolute text-primary font-semibold">Initializing Interactive Map...</p>
+        <p className="absolute text-primary font-semibold">Loading Interactive Map...</p>
       </div>
     )
   }
@@ -41,16 +41,16 @@ export function Hero() {
       </div>
 
       {/* Frame 2: Interactive Map Section */}
-      <div className="container mx-auto px-4 py-16 md:py-24"> {/* Added responsive padding to map section's container */}
-        <div className="bg-muted/10 dark:bg-muted/20 p-4 md:p-6 rounded-xl shadow-2xl 
-                        h-auto sm:aspect-video md:h-[400px] lg:h-[500px] flex flex-col"> {/* Responsive height/aspect ratio */}
+      <div className="container mx-auto px-4 py-16 md:py-24">
+        <div className="bg-muted/10 dark:bg-muted/20 p-4 md:p-6 rounded-xl 
+                        h-auto sm:aspect-video md:h-[400px] lg:h-[500px] flex flex-col">
           <h2 className="text-2xl md:text-3xl font-bold text-primary text-center mb-4">
             Discover Nepal: An Interactive Overview
           </h2>
           <p className="text-center text-muted-foreground mb-6 max-w-2xl mx-auto">
-            Click on districts or highlighted major cities on the map below. Explore detailed information and start planning your unique journey!
+            Click on districts or highlighted major cities on the map below to explore detailed information and start planning your unique journey!
           </p>
-          <div className="flex-grow w-full h-full min-h-[300px] sm:min-h-0"> {/* Ensure map has space to grow */}
+          <div className="flex-grow w-full h-full min-h-[300px] sm:min-h-0">
             <HomepageMapWithNoSSR />
           </div>
         </div>
