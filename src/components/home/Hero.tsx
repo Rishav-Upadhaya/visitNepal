@@ -25,7 +25,7 @@ export function Hero() {
   return (
     <section className="bg-background">
       {/* Frame 1: Title, Description, CTA */}
-      <div className="min-h-screen flex flex-col justify-center items-center text-center animate-fadeInUp">
+      <div className="flex flex-col justify-center items-center text-center animate-fadeInUp">
         <div className="container px-4 sm:px-6 lg:px-8 py-12 md:py-20">
           <h1 className="text-4xl md:text-5xl lg:text-6xl font-extrabold tracking-tight text-primary leading-tight animate-fadeInUp animation-delay-200">
             Explore the Majestic Beauty of Nepal
@@ -43,7 +43,7 @@ export function Hero() {
       </div>
 
       {/* Frame 2: Interactive Map Section */}
-      <div className="min-h-screen flex flex-col justify-center items-center bg-muted/30 py-12 md:py-20 animate-fadeInUp animation-delay-700">
+      <div className="flex flex-col justify-center items-center bg-muted/30 py-12 md:py-20 animate-fadeInUp animation-delay-700">
         <div 
             className="container flex flex-col items-center text-center 
                        w-full max-w-4xl 
