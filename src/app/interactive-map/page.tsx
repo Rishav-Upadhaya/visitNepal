@@ -1,4 +1,6 @@
 // src/app/interactive-map/page.tsx
+"use client"; // Add this directive
+
 import type { Metadata } from 'next';
 import dynamic from 'next/dynamic';
 import { Loader2 } from 'lucide-react';
