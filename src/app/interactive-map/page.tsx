@@ -2,25 +2,11 @@
 "use client"; // Add this directive
 
 import type { Metadata } from 'next';
-import dynamic from 'next/dynamic';
-import { Loader2 } from 'lucide-react';
-
-// Dynamically import the map component to ensure it's client-side only
-// and Leaflet's CSS is handled correctly.
-const DynamicMap = dynamic(() => 
-  import('@/components/maps/InteractiveDistrictMap').then(mod => mod.InteractiveDistrictMap),
-  { 
-    ssr: false, // Important: Leaflet needs to run on the client
-    loading: () => (
-        <div className="flex h-screen w-screen items-center justify-center bg-background text-foreground">
-            <Loader2 className="h-12 w-12 animate-spin text-primary" />
-            <p className="ml-4 text-lg">Initializing Interactive Map of Nepal...</p>
-        </div>
-    )
-  }
-);
+import ClientMapWrapper from '@/components/maps/ClientMapWrapper';
 
 export const metadata: Metadata = {
+  // @ts-ignore - metadata is not used in a client component, this is for the server render
+  // The actual metadata for the page will be defined in a layout file or a server component
   title: 'Interactive Map of Nepal | Explore Districts',
   description: 'Explore Nepal\'s districts interactively. View details, get your location, and plan your visit with our advanced map tool.',
   keywords: ['Nepal Interactive Map', 'Nepal Districts Map', 'Leaflet Map Nepal', 'Explore Nepal GeoJSON', 'Nepal Geolocation Map'],
