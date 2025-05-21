@@ -1,4 +1,6 @@
 
+"use client"; // Add this directive
+
 import Link from 'next/link';
 import { MapPinned, Route, Search, Menu, Mountain, Home } from 'lucide-react';
 import { Button } from '@/components/ui/button';
