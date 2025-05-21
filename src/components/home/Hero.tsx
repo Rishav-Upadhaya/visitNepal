@@ -42,8 +42,10 @@ export function Hero() {
 
       {/* Frame 2: Interactive Map Section */}
       <div className="container mx-auto px-4 py-16 md:py-24">
-        <div className="bg-muted/10 dark:bg-muted/20 p-4 md:p-6 rounded-xl 
-                        h-auto sm:aspect-video md:h-[400px] lg:h-[500px] flex flex-col">
+        <div
+          className="bg-muted/10 dark:bg-muted/20 p-4 md:p-6 rounded-xl 
+                        h-auto sm:aspect-video md:h-[400px] lg:h-[500px] flex flex-col items-center" // Added items-center
+        >
           <h2 className="text-2xl md:text-3xl font-bold text-primary text-center mb-4">
             Discover Nepal: An Interactive Overview
           </h2>
