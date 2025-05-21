@@ -42,7 +42,7 @@ export function Hero() {
 
       {/* Frame 2: Interactive Map Section */}
       <div className="container mx-auto px-4 py-16 md:py-24"> {/* Added responsive padding to map section's container */}
-        <div className="bg-muted/10 dark:bg-muted/20 p-4 md:p-6 rounded-xl shadow-2xl border border-border
+        <div className="bg-muted/10 dark:bg-muted/20 p-4 md:p-6 rounded-xl shadow-2xl 
                         h-auto sm:aspect-video md:h-[400px] lg:h-[500px] flex flex-col"> {/* Responsive height/aspect ratio */}
           <h2 className="text-2xl md:text-3xl font-bold text-primary text-center mb-4">
             Discover Nepal: An Interactive Overview
@@ -58,4 +58,3 @@ export function Hero() {
     </section>
   );
 }
-
