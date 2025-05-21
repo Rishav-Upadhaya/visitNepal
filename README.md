@@ -1,5 +1,3 @@
-# Firebase Studio
+# Nepal Explore
 
-This is a NextJS starter in Firebase Studio.
-
-To get started, take a look at src/app/page.tsx.
+An App for exploring around the Nepal
