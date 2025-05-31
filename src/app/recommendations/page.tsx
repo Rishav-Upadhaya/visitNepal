@@ -155,7 +155,7 @@ export default function RecommendationsPage() {
                 <p className="text-lg text-muted-foreground max-w-xl mx-auto">{currentCategoryDetails.description}</p>
               </div>
             )}
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 md:gap-8">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6 md:gap-8">
               {recommendationData.items.map((item: RecommendedItem) => (
                 <Card key={item.name} className="shadow-xl overflow-hidden border flex flex-col bg-card hover:shadow-2xl transition-shadow duration-300">
                   <div className="relative aspect-video w-full">
@@ -222,6 +222,8 @@ export default function RecommendationsPage() {
     </div>
   );
 }
+    
+
     
 
     
