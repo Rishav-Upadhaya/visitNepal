@@ -19,7 +19,7 @@ const categories: { name: string; id: RecommendationCategory; icon: React.Elemen
   { name: "Lakes", id: "lakes", icon: Waves, description: "Explore serene glacial lakes and vibrant lakeside towns." },
   { name: "Cities", id: "cities", icon: Building2, description: "Immerse yourself in ancient cultures and bustling urban centers." },
   { name: "National Parks", id: "national-parks", icon: Trees, description: "Encounter diverse wildlife in pristine natural reserves." },
-  { name: "Mountains", id: "mountains", icon: ThumbsUp, description: "Witness the majesty of the world's highest peaks and stunning panoramas." },
+  { name: "Hike", id: "hike", icon: Mountain, description: "Explore scenic hiking trails and enjoyable walks with beautiful views." },
 ];
 
 type ActiveView = 'categories' | 'searchResult';
@@ -237,7 +237,7 @@ export default function RecommendationsPage() {
                   <p className="text-base text-foreground mb-4 whitespace-pre-line">{searchResult.description}</p>
                   <Accordion type="single" collapsible className="w-full -mx-1">
                     {renderDetailAccordionItem(Map, "Key Attractions / Activities", searchResult.attractions, `search-attr-${searchResult.name}`)}
-                    {renderDetailAccordionItem(RouteIcon, "How to Reach", searchResult.howToReach, `search-how-${searchResult.name}`)}
+                    {renderDetailAccordionItem(RouteIcon, "How to Reach", searchResult.howToReach, `search-route-${searchResult.name}`)}
                     {renderDetailAccordionItem(Calendar, "Best Time to Visit", searchResult.bestTimeToVisit, `search-time-${searchResult.name}`)}
                     {renderDetailAccordionItem(MessageCircleQuestion, "Local Tips", searchResult.localTips, `search-tips-${searchResult.name}`)}
                   </Accordion>

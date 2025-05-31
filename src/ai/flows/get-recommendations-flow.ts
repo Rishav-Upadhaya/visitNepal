@@ -13,7 +13,7 @@
 import {ai} from '@/ai/genkit';
 import {z} from 'genkit';
 
-const CATEGORIES = ["treks", "lakes", "cities", "national-parks", "mountains"] as const;
+const CATEGORIES = ["treks", "lakes", "cities", "national-parks", "hike"] as const;
 const CategoryEnum = z.enum(CATEGORIES);
 export type RecommendationCategory = z.infer<typeof CategoryEnum>;
 
@@ -57,7 +57,7 @@ const generateTextPromptStructure = (category: RecommendationCategory): string =
   if (category === "lakes") itemFocus = "lakes";
   if (category === "cities") itemFocus = "cities";
   if (category === "national-parks") itemFocus = "national parks";
-  if (category === "mountains") itemFocus = "mountains or famous viewpoints";
+  if (category === "hike") itemFocus = "hiking trails or scenic walks";
 
   return `You are a Nepal travel expert. For the category "${category}", identify 3 to 4 distinct and popular ${itemFocus} in Nepal.
 For each of these ${itemFocus}, provide the following detailed information structured as a JSON object:
@@ -216,3 +216,4 @@ const getRecommendationsFlow = ai.defineFlow(
   }
 );
     
+
