@@ -4,7 +4,7 @@
 import { useState, useCallback, useEffect } from 'react';
 import Image from 'next/image';
 import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card'; // CardTitle might not be used directly for header
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Loader2, Star, Info, ImageOff, ThumbsUp, Mountain, Waves, Building2, Trees, Sparkles } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { getRecommendations, type GetRecommendationsOutput, type RecommendationCategory } from '@/ai/flows/get-recommendations-flow';
@@ -15,7 +15,7 @@ const categories: { name: string; id: RecommendationCategory; icon: React.Elemen
   { name: "Lakes", id: "lakes", icon: Waves },
   { name: "Cities", id: "cities", icon: Building2 },
   { name: "National Parks", id: "national-parks", icon: Trees },
-  { name: "Mountains", id: "mountains", icon: ThumbsUp },
+  { name: "Mountains", id: "mountains", icon: ThumbsUp }, // Changed icon to ThumbsUp for variety, can be Mountain icon as well
 ];
 
 export default function RecommendationsPage() {
@@ -44,6 +44,7 @@ export default function RecommendationsPage() {
       if (!result.imageUrl || result.imageUrl.includes('placehold.co')) {
         // Placeholder or no AI image
       }
+      logUserEvent({ eventName: 'FetchRecommendationsSuccess', eventData: { category, hasImage: !!result.imageUrl && !result.imageUrl.includes('placehold.co') }});
     } catch (e) {
       console.error("Failed to fetch recommendations:", e);
       const errorMessage = e instanceof Error ? e.message : "Could not load recommendations.";
@@ -59,7 +60,7 @@ export default function RecommendationsPage() {
     }
   }, [toast]);
 
-  const currentCategoryName = selectedCategory ? categories.find(c => c.id === selectedCategory)?.name : "Recommendation";
+  const currentCategoryDisplayName = selectedCategory ? categories.find(c => c.id === selectedCategory)?.name : "Recommendation";
 
   return (
     <div className="container py-12 md:py-16">
@@ -94,13 +95,13 @@ export default function RecommendationsPage() {
         </div>
       </div>
 
-      <div id="category-content" className="mt-12 min-h-[300px] max-w-2xl mx-auto"> {/* Centered and max-width for single card */}
+      <div id="category-content" className="mt-12 min-h-[300px] max-w-2xl mx-auto">
         {isLoading && (
           <Card className="shadow-xl flex flex-col items-center justify-center min-h-[300px] text-center bg-muted/30 border">
             <Loader2 className="h-12 w-12 text-primary animate-spin mx-auto mb-6" />
             <CardTitle className="text-2xl text-primary">Fetching Recommendations...</CardTitle>
             <CardDescription className="text-lg mt-2">
-              Our AI is working its magic for {currentCategoryName}!
+              Our AI is working its magic for {currentCategoryDisplayName}!
             </CardDescription>
           </Card>
         )}
@@ -117,19 +118,19 @@ export default function RecommendationsPage() {
 
         {!isLoading && !error && recommendation && (
           <Card className="shadow-xl overflow-hidden border">
-            <div className="relative aspect-video w-full"> {/* Image container */}
+            <div className="relative aspect-video w-full">
               {!imageError && recommendation.imageUrl ? (
                 <Image
                   src={recommendation.imageUrl}
                   alt={`AI generated image for ${recommendation.category} in Nepal`}
                   fill
                   className="object-cover"
-                  sizes="(max-width: 768px) 100vw, (max-width: 1024px) 80vw, 600px" // Adjust sizes as needed
+                  sizes="(max-width: 768px) 100vw, (max-width: 1024px) 80vw, 600px"
                   onError={() => {
                       console.warn(`Failed to load image: ${recommendation.imageUrl}`);
                       setImageError(true);
                   }}
-                  priority // Prioritize loading the image when recommendation is available
+                  priority
                   data-ai-hint={`${recommendation.category} nepal scenic`}
                 />
               ) : (
@@ -138,13 +139,11 @@ export default function RecommendationsPage() {
                   <p>Image not available</p>
                 </div>
               )}
-              <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-black/30 to-transparent flex items-end p-4 md:p-6">
-                <h2 className="text-3xl md:text-4xl font-bold text-white drop-shadow-lg">
-                  {categories.find(c => c.id === recommendation.category)?.name}
-                </h2>
-              </div>
             </div>
             <CardContent className="p-6">
+              <h2 className="text-2xl md:text-3xl font-bold text-primary mb-3 md:mb-4">
+                {categories.find(c => c.id === recommendation.category)?.name || currentCategoryDisplayName}
+              </h2>
               <div className="prose prose-lg dark:prose-invert max-w-none text-foreground/90">
                  <p className="whitespace-pre-line leading-relaxed">{recommendation.text}</p>
               </div>
@@ -165,4 +164,3 @@ export default function RecommendationsPage() {
     </div>
   );
 }
-
