@@ -19,6 +19,7 @@ export type RecommendationCategory = z.infer<typeof CategoryEnum>;
 
 const GetRecommendationsInputSchema = z.object({
   category: CategoryEnum.describe('The category for which to get recommendations.'),
+  excludeNames: z.array(z.string()).optional().describe('A list of item names to exclude from the new recommendations, to avoid duplicates.'),
 });
 export type GetRecommendationsInput = z.infer<typeof GetRecommendationsInputSchema>;
 
@@ -34,7 +35,7 @@ const TextModelRecommendedItemSchema = z.object({
 });
 
 const TextModelResponseSchema = z.object({
-  recommendations: z.array(TextModelRecommendedItemSchema).min(3).max(4).describe("An array of 3 to 4 recommended places/items for the given category, each with detailed structured information.")
+  recommendations: z.array(TextModelRecommendedItemSchema).min(1).max(4).describe("An array of 1 to 4 recommended places/items for the given category, each with detailed structured information.") // Adjusted min to 1
 });
 
 // Schema for the final output of the FLOW (includes imageUrl for each item)
@@ -51,7 +52,7 @@ const GetRecommendationsOutputSchema = z.object({
 export type GetRecommendationsOutput = z.infer<typeof GetRecommendationsOutputSchema>;
 
 
-const generateTextPromptStructure = (category: RecommendationCategory): string => {
+const generateTextPromptStructure = (category: RecommendationCategory, excludeNames?: string[]): string => {
   let itemFocus = "places or activities";
   let categorySpecificInstruction = "";
   let exampleItemName = "Example Place Name";
@@ -125,8 +126,16 @@ const generateTextPromptStructure = (category: RecommendationCategory): string =
     exampleRoute = "Approx. 1.5-2 hour drive east from Kathmandu.";
   }
 
+  const exclusionPrompt = excludeNames && excludeNames.length > 0
+    ? `
+**IMPORTANT**: Do NOT include any of the following items in your new recommendations as they have already been suggested:
+${excludeNames.map(name => `- ${name}`).join('\n')}
+Please provide 3-4 *new and different* ${itemFocus} that are not on this exclusion list. Ensure these new suggestions are distinct from the previously listed items.
+`
+    : `Identify 3 to 4 distinct and popular ${itemFocus} in Nepal.`;
 
-  return `You are a Nepal travel expert. For the category "${category}", identify 3 to 4 distinct and popular ${itemFocus} in Nepal.
+
+  return `You are a Nepal travel expert. For the category "${category}", ${exclusionPrompt}
 ${categorySpecificInstruction}
 
 For each of these ${itemFocus}, provide the following detailed information structured as a JSON object:
@@ -138,7 +147,7 @@ For each of these ${itemFocus}, provide the following detailed information struc
 6.  **food:** A list (JSON array of strings) of 2-4 famous local dishes, food specialties, or types of cuisine prominent in or around the area (e.g., ["Dal Bhat", "Thukpa"], ["Newari Khaja Set", "Momos"]).
 7.  **routeFromKathmandu:** Brief information on how to reach this place from Kathmandu and the estimated travel duration/days from Kathmandu (e.g., "Fly to Lukla (30 mins) then trek for 8 days to reach the base camp", "Approx. 6-7 hour tourist bus ride from Kathmandu", "Located within Kathmandu valley, easily accessible by taxi (30 mins)", "1.5 hour drive to trailhead from Kathmandu for a day hike").
 
-Your output MUST be a JSON object with a single key "recommendations". The value of "recommendations" must be an array of 3 or 4 objects, where each object contains all seven fields ('name', 'tagline', 'suggestedDuration', 'accommodations', 'nearbyPlaces', 'food', 'routeFromKathmandu') for one recommended item.
+Your output MUST be a JSON object with a single key "recommendations". The value of "recommendations" must be an array of 1 to 4 objects (ideally 3 or 4 if possible and distinct from any excluded names), where each object contains all seven fields ('name', 'tagline', 'suggestedDuration', 'accommodations', 'nearbyPlaces', 'food', 'routeFromKathmandu') for one recommended item.
 
 Example for one item in the "recommendations" array if the category was "${category}" and the item was "${exampleItemName}":
 {
@@ -178,18 +187,18 @@ const getRecommendationsFlow = ai.defineFlow(
     inputSchema: GetRecommendationsInputSchema,
     outputSchema: GetRecommendationsOutputSchema,
   },
-  async ({ category }) => {
+  async ({ category, excludeNames }) => {
     let textItems: z.infer<typeof TextModelRecommendedItemSchema>[] = [];
 
     try {
       // Step 1: Get names and structured details from the text model
-      const textPrompt = generateTextPromptStructure(category);
+      const textPrompt = generateTextPromptStructure(category, excludeNames);
       const textResponse = await ai.generate({
         prompt: textPrompt,
         output: { schema: TextModelResponseSchema },
         config: { 
             temperature: 0.3,
-            safetySettings: [ // Added safety settings
+            safetySettings: [ 
                 { category: 'HARM_CATEGORY_HATE_SPEECH', threshold: 'BLOCK_NONE' },
                 { category: 'HARM_CATEGORY_DANGEROUS_CONTENT', threshold: 'BLOCK_NONE' },
                 { category: 'HARM_CATEGORY_HARASSMENT', threshold: 'BLOCK_NONE' },
@@ -201,7 +210,7 @@ const getRecommendationsFlow = ai.defineFlow(
       if (textResponse.output?.recommendations && textResponse.output.recommendations.length > 0) {
         textItems = textResponse.output.recommendations.map(item => ({
             ...FALLBACK_ITEM_DETAILS,
-            name: item.name || `Unnamed ${category.slice(0,-1)}`, // Use singular form for unnamed
+            name: item.name || `Unnamed ${category.slice(0,-1)}`, 
             tagline: item.tagline || FALLBACK_ITEM_DETAILS.tagline,
             suggestedDuration: item.suggestedDuration || FALLBACK_ITEM_DETAILS.suggestedDuration,
             accommodations: item.accommodations && item.accommodations.length > 0 ? item.accommodations : FALLBACK_ITEM_DETAILS.accommodations,
@@ -210,25 +219,40 @@ const getRecommendationsFlow = ai.defineFlow(
             routeFromKathmandu: item.routeFromKathmandu || FALLBACK_ITEM_DETAILS.routeFromKathmandu,
         }));
       } else {
-        console.warn(`Text generation for category '${category}' returned no valid items or malformed data. Using fallback items.`);
-        // Create 3 fallback items if AI fails
-        textItems = Array(3).fill(null).map((_, i) => ({
-            name: `Amazing ${category.endsWith('s') ? category.slice(0,-1) : category} #${i + 1}`, // Handle singular/plural better
-            ...FALLBACK_ITEM_DETAILS,
-        }));
+        console.warn(`Text generation for category '${category}' (excluding: ${excludeNames?.join(', ')}) returned no valid items. Using fallback items if this is an initial request, or empty if 'explore more'.`);
+        // If it's an "explore more" request and AI returns nothing, we want an empty array, not fallbacks.
+        if (!excludeNames || excludeNames.length === 0) {
+            textItems = Array(3).fill(null).map((_, i) => ({
+                name: `Amazing ${category.endsWith('s') ? category.slice(0,-1) : category} #${i + 1}`, 
+                ...FALLBACK_ITEM_DETAILS,
+            }));
+        } else {
+            textItems = []; // Return empty for "explore more" if AI has nothing new
+        }
       }
     } catch (error) {
-      console.error(`Error generating text recommendations for category ${category}:`, error);
-       textItems = Array(3).fill(null).map((_, i) => ({ // Create 3 fallback items
-            name: `Beautiful ${category.endsWith('s') ? category.slice(0,-1) : category} #${i + 1}`,
-            ...FALLBACK_ITEM_DETAILS,
-        }));
+      console.error(`Error generating text recommendations for category ${category} (excluding: ${excludeNames?.join(', ')}):`, error);
+       if (!excludeNames || excludeNames.length === 0) {
+            textItems = Array(3).fill(null).map((_, i) => ({ 
+                name: `Beautiful ${category.endsWith('s') ? category.slice(0,-1) : category} #${i + 1}`,
+                ...FALLBACK_ITEM_DETAILS,
+            }));
+       } else {
+           textItems = [];
+       }
     }
 
+    // If textItems is empty (e.g., "explore more" yielded nothing new), return early
+    if (textItems.length === 0) {
+        return {
+            category: category,
+            items: [],
+        };
+    }
+    
     // Step 2: Generate images for each item in parallel
     const imageGenerationPromises = textItems.map(item => {
       const itemNameStr = typeof item.name === 'string' ? item.name : `Unnamed ${category.slice(0,-1)}`;
-      // Make image prompt more specific to the item and category
       const imagePrompt = `Generate a high-resolution, captivating travel photograph showcasing "${itemNameStr}" in Nepal, which is known as a prime example for the category '${category}'. The image should be scenic, inspiring, and suitable for a travel website. Focus on its most iconic aspect or viewpoint. Avoid any text overlays or people if not essential to the scene. Aim for a photorealistic style.`;
 
       return ai.generate({
@@ -243,9 +267,9 @@ const getRecommendationsFlow = ai.defineFlow(
             { category: 'HARM_CATEGORY_SEXUALLY_EXPLICIT', threshold: 'BLOCK_NONE' },
           ],
         },
-      }).catch(imgError => { // Catch individual image generation errors
+      }).catch(imgError => { 
         console.error(`Error generating image for item '${itemNameStr}' in category ${category}:`, imgError);
-        return null; // Return null or a specific error object if an image fails
+        return null; 
       });
     });
 
@@ -269,15 +293,15 @@ const getRecommendationsFlow = ai.defineFlow(
 
       return {
         ...item,
-        name: itemNameStr, // Ensure name is always a string
+        name: itemNameStr, 
         imageUrl: imageUrl,
         imageAiHint: imageAiHint,
       };
     });
-
-    if (finalItems.length === 0) { // Should not happen with fallback, but as a safeguard
-        console.error(`No items could be processed for category ${category}. This is an unexpected state.`);
-        // Return a single generic fallback if all else fails
+    
+    // This final fallback shouldn't be hit if textItems.length > 0, but kept as a safety net.
+    if (finalItems.length === 0) { 
+        console.error(`No items could be processed for category ${category} (excluding: ${excludeNames?.join(', ')}). This is an unexpected state if textItems had content.`);
         return {
             category: category,
             items: [{
@@ -295,6 +319,3 @@ const getRecommendationsFlow = ai.defineFlow(
     };
   }
 );
-
-
-    

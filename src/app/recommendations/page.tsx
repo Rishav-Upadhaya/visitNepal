@@ -45,6 +45,10 @@ export default function RecommendationsPage() {
   const [itemImageErrors, setItemImageErrors] = useState<ImageErrorState>({});
   const [searchImageError, setSearchImageError] = useState(false);
 
+  const [isLoadingMore, setIsLoadingMore] = useState(false);
+  const [loadMoreError, setLoadMoreError] = useState<string | null>(null);
+  const [canLoadMore, setCanLoadMore] = useState(true);
+
 
   useEffect(() => {
      logUserEvent({ eventName: 'PageView', eventData: { page: 'RecommendationsPage' } });
@@ -57,11 +61,16 @@ export default function RecommendationsPage() {
     setRecommendationData(null);
     setItemImageErrors({});
     setActiveView('categories'); 
+    setCanLoadMore(true); // Reset for new category
+    setLoadMoreError(null);
     logUserEvent({ eventName: 'FetchRecommendationsAttempt', eventData: { category }});
 
     try {
       const result = await getRecommendations({ category });
       setRecommendationData(result);
+      if (result.items.length < 3) { // If AI returns fewer than requested, assume no more initially
+        setCanLoadMore(false);
+      }
       logUserEvent({ eventName: 'FetchRecommendationsSuccess', eventData: { category, itemCount: result.items.length }});
     } catch (e) {
       console.error("Failed to fetch recommendations:", e);
@@ -77,6 +86,54 @@ export default function RecommendationsPage() {
       setIsLoadingCategories(false);
     }
   }, [toast]);
+
+  const handleExploreMore = useCallback(async () => {
+    if (!selectedCategory || !recommendationData) return;
+
+    setIsLoadingMore(true);
+    setLoadMoreError(null);
+    logUserEvent({ eventName: 'ExploreMoreAttempt', eventData: { category: selectedCategory }});
+
+    const existingItemNames = recommendationData.items.map(item => item.name);
+
+    try {
+        const result = await getRecommendations({ category: selectedCategory, excludeNames: existingItemNames });
+        if (result.items.length > 0) {
+            const newUniqueItems = result.items.filter(newItem =>
+                !recommendationData.items.some(existingItem => existingItem.name === newItem.name)
+            );
+
+            if (newUniqueItems.length > 0) {
+                setRecommendationData(prev => ({
+                    ...prev!,
+                    items: [...prev!.items, ...newUniqueItems]
+                }));
+            } else {
+                 toast({ title: "No More Unique Items", description: `AI couldn't find more unique ${selectedCategory} at the moment.`, variant: "default" });
+            }
+             if (result.items.length < 3) { // If AI returns fewer items than typical batch
+                setCanLoadMore(false);
+            }
+        } else {
+            setCanLoadMore(false); // No more items returned by AI
+            toast({ title: "That's All!", description: `No more recommendations found for ${selectedCategory}.`, variant: "default" });
+        }
+        logUserEvent({ eventName: 'ExploreMoreSuccess', eventData: { category: selectedCategory, newItemsCount: result.items.length }});
+    } catch (e) {
+        console.error("Failed to fetch more recommendations:", e);
+        const errorMessage = e instanceof Error ? e.message : "Could not load more recommendations.";
+        setLoadMoreError(errorMessage);
+        toast({
+            title: "Error Loading More",
+            description: errorMessage,
+            variant: "destructive",
+        });
+        logUserEvent({ eventName: 'ExploreMoreFailure', eventData: { category: selectedCategory, error: errorMessage }});
+    } finally {
+        setIsLoadingMore(false);
+    }
+  }, [selectedCategory, recommendationData, toast]);
+
 
   const handleGeneralSearch = useCallback(async (query?: string) => {
     const placeToSearch = query || searchQuery;
@@ -195,7 +252,7 @@ export default function RecommendationsPage() {
               <ChevronLeft className="mr-2 h-4 w-4" /> Back to Categories
             </Button>
             {isSearchingPlace && (
-              <Card className="shadow-xl flex flex-col items-center justify-center min-h-[400px] text-center bg-muted/30 border max-w-2xl mx-auto">
+              <Card className="shadow-xl flex flex-col items-center justify-center min-h-[400px] text-center bg-muted/30 border">
                 <Loader2 className="h-12 w-12 text-primary animate-spin mx-auto mb-6" />
                 <CardTitle className="text-2xl text-primary">Searching for {searchQuery}...</CardTitle>
                 <CardDescription className="text-lg mt-2">
@@ -204,7 +261,7 @@ export default function RecommendationsPage() {
               </Card>
             )}
             {!isSearchingPlace && searchError && (
-              <Card className="shadow-xl flex flex-col items-center justify-center min-h-[300px] text-center bg-destructive/10 border-destructive p-6 max-w-2xl mx-auto">
+              <Card className="shadow-xl flex flex-col items-center justify-center min-h-[300px] text-center bg-destructive/10 border-destructive p-6">
                 <Info className="h-12 w-12 text-destructive mx-auto mb-4" />
                 <CardTitle className="text-2xl text-destructive">Search Failed</CardTitle>
                 <CardDescription className="text-lg mt-2 text-destructive/90">
@@ -214,7 +271,7 @@ export default function RecommendationsPage() {
             )}
             {!isSearchingPlace && !searchError && searchResult && (
               isSearchResultNotFoundInNepal ? (
-                <Card className="shadow-xl flex flex-col items-center justify-center min-h-[300px] text-center bg-amber-50 dark:bg-amber-900/20 border-amber-400 dark:border-amber-600 p-6 max-w-2xl mx-auto">
+                <Card className="shadow-xl flex flex-col items-center justify-center min-h-[300px] text-center bg-amber-50 dark:bg-amber-900/20 border-amber-400 dark:border-amber-600 p-6">
                   <Info className="h-12 w-12 text-amber-500 dark:text-amber-400 mx-auto mb-4" />
                   <CardTitle className="text-2xl text-amber-700 dark:text-amber-300">Place Information Not Available</CardTitle>
                   <CardDescription className="text-lg mt-2 text-amber-600 dark:text-amber-500">
@@ -363,6 +420,21 @@ export default function RecommendationsPage() {
                     </Card>
                   ))}
                 </div>
+                 {canLoadMore && recommendationData.items.length > 0 && (
+                  <div className="mt-12 text-center">
+                    <Button
+                      onClick={handleExploreMore}
+                      disabled={isLoadingMore || isLoadingCategories}
+                      variant="outline"
+                      size="lg"
+                      className="text-primary border-primary hover:bg-primary/10"
+                    >
+                      {isLoadingMore ? <Loader2 className="mr-2 h-5 w-5 animate-spin" /> : <Sparkles className="mr-2 h-5 w-5" />}
+                      Explore More {currentCategoryDetails?.name}
+                    </Button>
+                    {loadMoreError && <p className="text-destructive mt-2 text-sm">{loadMoreError}</p>}
+                  </div>
+                )}
               </>
             )}
 
@@ -391,17 +463,3 @@ export default function RecommendationsPage() {
     </div>
   );
 }
-    
-
-    
-
-
-    
-
-
-
-
-
-    
-
-
