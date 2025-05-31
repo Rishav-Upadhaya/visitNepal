@@ -5,11 +5,13 @@ import { useState, useCallback, useEffect } from 'react';
 import Image from 'next/image';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
+import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
 import { Loader2, Star, Info, ImageOff, ThumbsUp, Mountain, Waves, Building2, Trees, Sparkles, MapPin, Clock, Home, Utensils, RouteIcon, Compass } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { getRecommendations, type GetRecommendationsOutput, type RecommendationCategory, type RecommendedItem } from '@/ai/flows/get-recommendations-flow';
 import { logUserEvent } from '@/lib/logger';
 import { Separator } from '@/components/ui/separator';
+import { cn } from '@/lib/utils';
 
 const categories: { name: string; id: RecommendationCategory; icon: React.ElementType; description: string; }[] = [
   { name: "Treks", id: "treks", icon: Mountain, description: "Discover legendary trails and breathtaking Himalayan vistas." },
@@ -39,7 +41,7 @@ export default function RecommendationsPage() {
     setIsLoading(true);
     setError(null);
     setRecommendationData(null);
-    setItemImageErrors({}); 
+    setItemImageErrors({});
     logUserEvent({ eventName: 'FetchRecommendationsAttempt', eventData: { category }});
 
     try {
@@ -67,23 +69,26 @@ export default function RecommendationsPage() {
 
   const currentCategoryDetails = selectedCategory ? categories.find(c => c.id === selectedCategory) : null;
 
-  const renderDetailItem = (icon: React.ElementType, label: string, value?: string | string[] | null) => {
+  const renderAccordionDetailItem = (icon: React.ElementType, label: string, value?: string | string[] | null, valueKey?: string) => {
     if (!value || (Array.isArray(value) && value.length === 0)) return null;
     const IconComponent = icon;
     return (
-      <div className="mb-2.5">
-        <h4 className="text-sm font-semibold text-primary mb-1 flex items-center">
-          <IconComponent className="h-4 w-4 mr-2" />
-          {label}:
-        </h4>
-        {Array.isArray(value) ? (
-          <ul className="list-disc list-inside text-xs text-muted-foreground pl-1 space-y-0.5">
-            {value.map((val, idx) => <li key={idx}>{val}</li>)}
-          </ul>
-        ) : (
-          <p className="text-xs text-muted-foreground whitespace-pre-line">{value}</p>
-        )}
-      </div>
+      <AccordionItem value={valueKey || label.toLowerCase().replace(/\s+/g, '-')}>
+        <AccordionTrigger className="text-base font-medium hover:text-primary py-3 px-1">
+          <div className="flex items-center gap-2">
+            <IconComponent className="h-5 w-5 text-primary" /> {label}
+          </div>
+        </AccordionTrigger>
+        <AccordionContent className="pt-1 pb-2 px-1 text-sm">
+          {Array.isArray(value) ? (
+            <ul className="list-disc list-inside text-muted-foreground pl-2 space-y-1">
+              {value.map((val, idx) => <li key={idx}>{val}</li>)}
+            </ul>
+          ) : (
+            <p className="text-muted-foreground whitespace-pre-line">{value}</p>
+          )}
+        </AccordionContent>
+      </AccordionItem>
     );
   };
 
@@ -165,7 +170,7 @@ export default function RecommendationsPage() {
                             console.warn(`Failed to load image: ${item.imageUrl} for item ${item.name}`);
                             handleItemImageError(item.name);
                         }}
-                        priority={recommendationData.items.indexOf(item) < 2} 
+                        priority={recommendationData.items.indexOf(item) < 2}
                         data-ai-hint={item.imageAiHint || `${item.name} ${recommendationData.category}`}
                       />
                     ) : (
@@ -174,24 +179,26 @@ export default function RecommendationsPage() {
                         <p>Image not available</p>
                       </div>
                     )}
+                     <div className="absolute inset-x-0 bottom-0 p-4 bg-gradient-to-t from-black/80 via-black/50 to-transparent">
+                        <h3 className="text-xl md:text-2xl font-bold text-white drop-shadow-lg">{item.name}</h3>
+                    </div>
                   </div>
-                  <CardHeader className="p-4 pb-2 md:p-5 md:pb-3">
-                    <CardTitle className="text-lg md:text-xl font-bold text-primary">{item.name}</CardTitle>
-                  </CardHeader>
-                  <CardContent className="p-4 pt-0 md:p-5 md:pt-0 flex-grow flex flex-col text-xs">
-                    {renderDetailItem(Sparkles, "Tagline", item.tagline)}
-                    {renderDetailItem(Clock, "Suggested Duration", item.suggestedDuration)}
-                    {renderDetailItem(Home, "Accommodations", item.accommodations)}
-                    {item.nearbyPlaces && item.nearbyPlaces.length > 0 && renderDetailItem(Compass, "Nearby Places", item.nearbyPlaces)}
-                    {renderDetailItem(Utensils, "Local Food", item.food)}
-                    {renderDetailItem(RouteIcon, "Route from Kathmandu", item.routeFromKathmandu)}
+                  <CardContent className="p-4 pt-3 md:p-5 md:pt-4 flex-grow flex flex-col">
+                    <p className="text-sm text-muted-foreground mb-3 line-clamp-3">{item.tagline}</p>
+                    <Accordion type="single" collapsible className="w-full -mx-1">
+                        {renderAccordionDetailItem(Clock, "Suggested Duration", item.suggestedDuration, `duration-${item.name}`)}
+                        {renderAccordionDetailItem(Home, "Accommodations", item.accommodations, `accomo-${item.name}`)}
+                        {item.nearbyPlaces && item.nearbyPlaces.length > 0 && renderAccordionDetailItem(Compass, "Nearby Places", item.nearbyPlaces, `nearby-${item.name}`)}
+                        {renderAccordionDetailItem(Utensils, "Local Food", item.food, `food-${item.name}`)}
+                        {renderAccordionDetailItem(RouteIcon, "Route from Kathmandu", item.routeFromKathmandu, `route-${item.name}`)}
+                    </Accordion>
                   </CardContent>
                 </Card>
               ))}
             </div>
           </>
         )}
-        
+
         {!isLoading && !error && recommendationData && recommendationData.items.length === 0 && (
              <Card className="shadow-xl flex flex-col items-center justify-center min-h-[300px] text-center bg-muted/30 border p-6 max-w-lg mx-auto">
                 <Info className="h-12 w-12 text-primary mx-auto mb-4" />
@@ -215,4 +222,6 @@ export default function RecommendationsPage() {
     </div>
   );
 }
+    
+
     
