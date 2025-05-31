@@ -250,7 +250,7 @@ export default function RecommendationsPage() {
                     <p className="text-base text-foreground mb-4 whitespace-pre-line">{searchResult.description}</p>
                     <Accordion type="single" collapsible className="w-full -mx-1">
                       {renderDetailAccordionItem(Map, "Key Attractions / Activities", searchResult.attractions, `search-attr-${searchResult.name.replace(/\s+/g, '-')}`)}
-                      {renderDetailAccordionItem(RouteIcon, "How to Reach", searchResult.howToReach, `search-howtoreach-${searchResult.name.replace(/\s+/g, '-')}`)}
+                      {renderDetailAccordionItem(RouteIcon, "How to Reach", searchResult.howToReach, `search-how-${searchResult.name.replace(/\s+/g, '-')}`)}
                       {renderDetailAccordionItem(Calendar, "Best Time to Visit", searchResult.bestTimeToVisit, `search-time-${searchResult.name.replace(/\s+/g, '-')}`)}
                       {renderDetailAccordionItem(MessageCircleQuestion, "Local Tips", searchResult.localTips, `search-tips-${searchResult.name.replace(/\s+/g, '-')}`)}
                     </Accordion>
@@ -352,7 +352,7 @@ export default function RecommendationsPage() {
                             {renderDetailAccordionItem(RouteIcon, "Route from Kathmandu", item.routeFromKathmandu, `cat-route-${item.name.replace(/\s+/g, '-')}`)}
                         </Accordion>
                         <Button 
-                            variant="secondary" 
+                            variant="outline" 
                             size="sm" 
                             className="mt-auto w-full"
                             onClick={() => handleItemCardSearch(item.name)}
