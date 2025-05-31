@@ -222,7 +222,7 @@ export default function RecommendationsPage() {
                   </CardDescription>
                 </Card>
               ) : (
-                <Card className="shadow-xl overflow-hidden border flex flex-col bg-card hover:shadow-2xl transition-shadow duration-300 max-w-2xl mx-auto">
+                <Card className="shadow-xl overflow-hidden border flex flex-col bg-card hover:shadow-2xl transition-shadow duration-300">
                   <div className="relative aspect-[16/10] w-full">
                     {!searchImageError && searchResult.imageUrl ? (
                       <Image
@@ -242,12 +242,12 @@ export default function RecommendationsPage() {
                       </div>
                     )}
                     <div className="absolute inset-x-0 bottom-0 p-4 md:p-6 bg-gradient-to-t from-black/80 via-black/50 to-transparent">
-                      <h2 className="text-2xl md:text-3xl font-bold text-white drop-shadow-lg">{searchResult.name}</h2>
+                      <h2 className="text-3xl md:text-4xl font-bold text-white drop-shadow-lg">{searchResult.name}</h2>
                     </div>
                   </div>
-                  <CardContent className="p-4 md:p-6 flex-grow flex flex-col">
-                    <p className="text-md text-muted-foreground mb-1 italic">{searchResult.tagline}</p>
-                    <p className="text-base text-foreground mb-4 whitespace-pre-line">{searchResult.description}</p>
+                  <CardContent className="p-6 md:p-8 flex-grow flex flex-col">
+                    <p className="text-xl text-muted-foreground mb-4 italic">{searchResult.tagline}</p>
+                    <p className="text-base md:text-lg text-foreground mb-6 whitespace-pre-line leading-relaxed">{searchResult.description}</p>
                     <Accordion type="single" collapsible className="w-full -mx-1">
                       {renderDetailAccordionItem(Map, "Key Attractions / Activities", searchResult.attractions, `search-attr-${searchResult.name.replace(/\s+/g, '-')}`)}
                       {renderDetailAccordionItem(RouteIcon, "How to Reach", searchResult.howToReach, `search-how-${searchResult.name.replace(/\s+/g, '-')}`)}
@@ -403,4 +403,5 @@ export default function RecommendationsPage() {
 
 
     
+
 
