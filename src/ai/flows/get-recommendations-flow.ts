@@ -5,7 +5,7 @@
  *
  * - getRecommendations - Fetches AI-generated structured details and images for multiple items within a category.
  * - GetRecommendationsInput - Input type for the getRecommendations function.
- * - GetRecommendationsOutput - Output type for the getRecommendations function.
+ * - GetRecommendationsOutput - Output type for the getRecommendationsOutput function.
  * - RecommendationCategory - Type for recommendation categories.
  * - RecommendedItem - Type for individual recommended items.
  */
@@ -53,33 +53,92 @@ export type GetRecommendationsOutput = z.infer<typeof GetRecommendationsOutputSc
 
 const generateTextPromptStructure = (category: RecommendationCategory): string => {
   let itemFocus = "places or activities";
-  if (category === "treks") itemFocus = "trekking routes";
-  if (category === "lakes") itemFocus = "lakes";
-  if (category === "cities") itemFocus = "cities";
-  if (category === "national-parks") itemFocus = "national parks";
-  if (category === "hike") itemFocus = "hiking trails or scenic walks";
+  let categorySpecificInstruction = "";
+  let exampleItemName = "Example Place Name";
+  let exampleTagline = "An amazing example tagline for this place.";
+  let exampleDuration = "Varies depending on interest";
+  let exampleAccommodations = `["Various suitable options", "Local guesthouses"]`;
+  let exampleNearby = `["Nearby Attraction 1", "Another Point of Interest"]`;
+  let exampleFood = `["Local specialty dish 1", "Popular regional cuisine"]`;
+  let exampleRoute = "Accessible from Kathmandu via a short flight or scenic bus ride.";
+
+
+  if (category === "treks") {
+    itemFocus = "trekking routes";
+    categorySpecificInstruction = "Focus on well-known multi-day trekking expeditions in mountainous regions.";
+    exampleItemName = "Everest Base Camp Trek";
+    exampleTagline = "Journey to the foot of the world's highest peak, an iconic Himalayan adventure.";
+    exampleDuration = "12-14 days";
+    exampleAccommodations = `["Tea Houses along the trail", "Lodges in Namche Bazaar"]`;
+    exampleNearby = `["Kala Patthar viewpoint", "Tengboche Monastery"]`;
+    exampleFood = `["Dal Bhat (lentil soup with rice)", "Sherpa stew", "Momos"]`;
+    exampleRoute = "Fly from Kathmandu to Lukla (30 mins), then begin the trek.";
+  } else if (category === "lakes") {
+    itemFocus = "lakes";
+    categorySpecificInstruction = "Highlight both famous and lesser-known lakes, emphasizing their natural beauty and accessibility.";
+    exampleItemName = "Phewa Lake";
+    exampleTagline = "Pokhara's iconic lake, offering stunning Annapurna reflections, boating, and vibrant lakeside life.";
+    exampleDuration = "1-2 days (to explore Pokhara and enjoy the lake)";
+    exampleAccommodations = `["Lakeside Hotels (all budgets)", "Guesthouses", "Yoga Retreats"]`;
+    exampleNearby = `["World Peace Pagoda", "Sarangkot Viewpoint", "Devi's Fall"]`;
+    exampleFood = `["Fresh fish from the lake", "Nepali Thali sets", "International cuisine at Lakeside restaurants"]`;
+    exampleRoute = "Fly to Pokhara (25 mins) or take a tourist bus (6-8 hours) from Kathmandu.";
+  } else if (category === "cities") {
+    itemFocus = "cities";
+    categorySpecificInstruction = "Showcase cities known for their cultural heritage, historical significance, or vibrant urban life.";
+    exampleItemName = "Bhaktapur Durbar Square";
+    exampleTagline = "A UNESCO World Heritage site, showcasing ancient Newari art, architecture, and vibrant traditions.";
+    exampleDuration = "Full day visit";
+    exampleAccommodations = `["Heritage Hotels in Bhaktapur", "Guesthouses", "Day trip from Kathmandu"]`;
+    exampleNearby = `["Changu Narayan Temple", "Nagarkot (for views, if combined)"]`;
+    exampleFood = `["Juju Dhau (King Curd)", "Newari Khaja Set", "Samay Baji"]`;
+    exampleRoute = "Approx. 1-hour taxi or local bus ride east from Kathmandu.";
+  } else if (category === "national-parks") {
+    itemFocus = "national parks";
+    categorySpecificInstruction = "Detail national parks, focusing on their unique ecosystems, wildlife, and conservation efforts.";
+    exampleItemName = "Chitwan National Park";
+    exampleTagline = "A UNESCO World Heritage site in the Terai plains, home to rhinos, tigers, and diverse wildlife.";
+    exampleDuration = "2-3 days";
+    exampleAccommodations = `["Jungle Lodges inside the park", "Resorts in Sauraha", "Community Homestays"]`;
+    exampleNearby = `["Tharu Village tours", "Elephant Breeding Center", "Devghat Dham"]`;
+    exampleFood = `["Local Tharu cuisine", "Nepali Thali", "Freshwater fish"]`;
+    exampleRoute = "Fly to Bharatpur (20 mins) then 30-min drive to Sauraha, or 5-6 hour tourist bus from Kathmandu/Pokhara.";
+  } else if (category === "hike") {
+    itemFocus = "hiking trails or scenic walks";
+    categorySpecificInstruction = "Focus on shorter hiking trails, day walks, or scenic viewpoints accessible for day trips or short excursions. These should be distinct from major multi-day treks.";
+    exampleItemName = "Nagarkot Panoramic Trail";
+    exampleTagline = "Enjoy breathtaking Himalayan sunrise views and a refreshing walk through forests and villages near Kathmandu.";
+    exampleDuration = "Full-day (includes travel and 4-5 hours hiking)";
+    exampleAccommodations = `["Hotels and Guesthouses in Nagarkot (all budgets)", "Community Homestays in nearby villages"]`;
+    exampleNearby = `["Nagarkot View Tower", "Changunarayan Temple (can be part of a longer hike)"]`;
+    exampleFood = `["Local Nepali Thali sets in Nagarkot", "Tea and snacks at viewpoints along the trail"]`;
+    exampleRoute = "Drive from Kathmandu to Nagarkot (approx. 1.5-2 hours). Trail starts from various points in Nagarkot.";
+  }
+
 
   return `You are a Nepal travel expert. For the category "${category}", identify 3 to 4 distinct and popular ${itemFocus} in Nepal.
+${categorySpecificInstruction}
+
 For each of these ${itemFocus}, provide the following detailed information structured as a JSON object:
-1.  **name:** The specific name (e.g., "Everest Base Camp Trek", "Phewa Lake", "Kathmandu Durbar Square").
+1.  **name:** The specific name of the place/item.
 2.  **tagline:** A short, catchy, and descriptive tagline (1-2 sentences) that captures its essence.
-3.  **suggestedDuration:** Suggested number of days to spend (e.g., "10-12 days for the trek", "2-3 days", "Half-day tour").
-4.  **accommodations:** A list (array of strings) of 2-4 general types or examples of accommodations available (e.g., ["Tea Houses", "Lodges"], ["Luxury Hotels", "Boutique Guesthouses", "Homestays"]).
-5.  **nearbyPlaces:** An optional list (array of strings) of 2-3 other interesting places or attractions nearby. If none are particularly relevant or distinct, this can be omitted or an empty array.
-6.  **food:** A list (array of strings) of 2-4 famous local dishes, food specialties, or types of cuisine prominent in or around the area (e.g., ["Dal Bhat", "Thukpa"], ["Newari Khaja Set", "Momos"]).
-7.  **routeFromKathmandu:** Brief information on how to reach this place from Kathmandu and the estimated travel duration/days from Kathmandu (e.g., "Fly to Lukla (30 mins) then trek for 8 days to reach the base camp", "Approx. 6-7 hour tourist bus ride from Kathmandu", "Located within Kathmandu valley, easily accessible by taxi (30 mins)").
+3.  **suggestedDuration:** Suggested number of days or hours to spend (e.g., "10-12 days for the trek", "2-3 days", "Half-day tour", "6-7 hours hike").
+4.  **accommodations:** A list (JSON array of strings) of 2-4 general types or examples of accommodations available (e.g., ["Tea Houses", "Lodges"], ["Luxury Hotels", "Boutique Guesthouses", "Homestays"]).
+5.  **nearbyPlaces:** An optional list (JSON array of strings) of 2-3 other interesting places or attractions nearby. If none are particularly relevant or distinct, this can be an empty array or omitted.
+6.  **food:** A list (JSON array of strings) of 2-4 famous local dishes, food specialties, or types of cuisine prominent in or around the area (e.g., ["Dal Bhat", "Thukpa"], ["Newari Khaja Set", "Momos"]).
+7.  **routeFromKathmandu:** Brief information on how to reach this place from Kathmandu and the estimated travel duration/days from Kathmandu (e.g., "Fly to Lukla (30 mins) then trek for 8 days to reach the base camp", "Approx. 6-7 hour tourist bus ride from Kathmandu", "Located within Kathmandu valley, easily accessible by taxi (30 mins)", "1.5 hour drive to trailhead from Kathmandu for a day hike").
 
 Your output MUST be a JSON object with a single key "recommendations". The value of "recommendations" must be an array of 3 or 4 objects, where each object contains all seven fields ('name', 'tagline', 'suggestedDuration', 'accommodations', 'nearbyPlaces', 'food', 'routeFromKathmandu') for one recommended item.
 
-Example for one item in the "recommendations" array if the category was "lakes":
+Example for one item in the "recommendations" array if the category was "${category}" and the item was "${exampleItemName}":
 {
-  "name": "Phewa Lake",
-  "tagline": "Pokhara's iconic lake, offering stunning Annapurna reflections, boating, and vibrant lakeside life.",
-  "suggestedDuration": "2-3 days (to explore Pokhara and enjoy the lake)",
-  "accommodations": ["Lakeside Hotels (all budgets)", "Guesthouses", "Yoga Retreats"],
-  "nearbyPlaces": ["World Peace Pagoda", "Sarangkot Viewpoint", "Devi's Fall"],
-  "food": ["Fresh fish from the lake", "Nepali Thali sets", "International cuisine at Lakeside restaurants"],
-  "routeFromKathmandu": "Fly to Pokhara (25 mins) or take a tourist bus (6-8 hours)."
+  "name": "${exampleItemName}",
+  "tagline": "${exampleTagline}",
+  "suggestedDuration": "${exampleDuration}",
+  "accommodations": ${exampleAccommodations},
+  "nearbyPlaces": ${exampleNearby},
+  "food": ${exampleFood},
+  "routeFromKathmandu": "${exampleRoute}"
 }
 
 Ensure your response strictly adheres to this JSON structure and provides all requested fields for each recommended item.
@@ -117,14 +176,14 @@ const getRecommendationsFlow = ai.defineFlow(
       const textPrompt = generateTextPromptStructure(category);
       const textResponse = await ai.generate({
         prompt: textPrompt,
-        output: { schema: TextModelResponseSchema }, 
-        config: { temperature: 0.3 } 
+        output: { schema: TextModelResponseSchema },
+        config: { temperature: 0.3 }
       });
-      
+
       if (textResponse.output?.recommendations && textResponse.output.recommendations.length > 0) {
         textItems = textResponse.output.recommendations.map(item => ({
-            ...FALLBACK_ITEM_DETAILS, 
-            name: item.name || `Unnamed ${category.slice(0,-1)}`,
+            ...FALLBACK_ITEM_DETAILS,
+            name: item.name || `Unnamed ${category.slice(0,-1)}`, // Use singular form for unnamed
             tagline: item.tagline || FALLBACK_ITEM_DETAILS.tagline,
             suggestedDuration: item.suggestedDuration || FALLBACK_ITEM_DETAILS.suggestedDuration,
             accommodations: item.accommodations && item.accommodations.length > 0 ? item.accommodations : FALLBACK_ITEM_DETAILS.accommodations,
@@ -134,15 +193,16 @@ const getRecommendationsFlow = ai.defineFlow(
         }));
       } else {
         console.warn(`Text generation for category '${category}' returned no valid items or malformed data. Using fallback items.`);
+        // Create 3 fallback items if AI fails
         textItems = Array(3).fill(null).map((_, i) => ({
-            name: `Amazing ${category.slice(0,-1)} #${i + 1}`,
+            name: `Amazing ${category.endsWith('s') ? category.slice(0,-1) : category} #${i + 1}`, // Handle singular/plural better
             ...FALLBACK_ITEM_DETAILS,
         }));
       }
     } catch (error) {
       console.error(`Error generating text recommendations for category ${category}:`, error);
-       textItems = Array(3).fill(null).map((_, i) => ({
-            name: `Beautiful ${category.slice(0,-1)} #${i + 1}`,
+       textItems = Array(3).fill(null).map((_, i) => ({ // Create 3 fallback items
+            name: `Beautiful ${category.endsWith('s') ? category.slice(0,-1) : category} #${i + 1}`,
             ...FALLBACK_ITEM_DETAILS,
         }));
     }
@@ -150,14 +210,15 @@ const getRecommendationsFlow = ai.defineFlow(
     // Step 2: Generate images for each item in parallel
     const imageGenerationPromises = textItems.map(item => {
       const itemNameStr = typeof item.name === 'string' ? item.name : `Unnamed ${category.slice(0,-1)}`;
-      const imagePrompt = `Generate a high-resolution, captivating travel photograph showcasing "${itemNameStr}" in Nepal, relevant to the category '${category}'. The image should be scenic, inspiring, and suitable for a travel website. Avoid any text overlays or people if not essential to the scene. Focus on natural beauty or iconic man-made structures if applicable.`;
-      
+      // Make image prompt more specific to the item and category
+      const imagePrompt = `Generate a high-resolution, captivating travel photograph showcasing "${itemNameStr}" in Nepal, which is known as a prime example for the category '${category}'. The image should be scenic, inspiring, and suitable for a travel website. Focus on its most iconic aspect or viewpoint. Avoid any text overlays or people if not essential to the scene. Aim for a photorealistic style.`;
+
       return ai.generate({
         model: 'googleai/gemini-2.0-flash-exp',
         prompt: imagePrompt,
         config: {
           responseModalities: ['TEXT', 'IMAGE'],
-           safetySettings: [ 
+           safetySettings: [
             { category: 'HARM_CATEGORY_HATE_SPEECH', threshold: 'BLOCK_NONE' },
             { category: 'HARM_CATEGORY_DANGEROUS_CONTENT', threshold: 'BLOCK_NONE' },
             { category: 'HARM_CATEGORY_HARASSMENT', threshold: 'BLOCK_NONE' },
@@ -174,7 +235,7 @@ const getRecommendationsFlow = ai.defineFlow(
 
     const finalItems: RecommendedItem[] = textItems.map((item, index) => {
       const itemNameStr = typeof item.name === 'string' ? item.name : `Unnamed ${category.slice(0,-1)}`;
-      const imageAiHint = `${itemNameStr} ${category} Nepal`; 
+      const imageAiHint = `${itemNameStr} ${category} Nepal`;
       let imageUrl = FALLBACK_IMAGE_URL_ITEM;
 
       const result = imageResults[index];
@@ -187,17 +248,18 @@ const getRecommendationsFlow = ai.defineFlow(
              console.warn(`Image generation for item '${itemNameStr}' in category '${category}' returned no media URL or failed. Using fallback.`);
         }
       }
-      
+
       return {
         ...item,
-        name: itemNameStr,
+        name: itemNameStr, // Ensure name is always a string
         imageUrl: imageUrl,
         imageAiHint: imageAiHint,
       };
     });
-    
-    if (finalItems.length === 0) { 
+
+    if (finalItems.length === 0) { // Should not happen with fallback, but as a safeguard
         console.error(`No items could be processed for category ${category}. This is an unexpected state.`);
+        // Return a single generic fallback if all else fails
         return {
             category: category,
             items: [{
@@ -215,5 +277,3 @@ const getRecommendationsFlow = ai.defineFlow(
     };
   }
 );
-    
-
