@@ -7,7 +7,7 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
 import { Input } from '@/components/ui/input';
-import { Loader2, Star, Info, ImageOff, ThumbsUp, Mountain, Waves, Building2, Trees, Sparkles, MapPin, Clock, Home, Utensils, RouteIcon, Compass, Search, ChevronLeft, Calendar, Map, Flag, MessageCircleQuestion } from 'lucide-react';
+import { Loader2, Star, Info, ImageOff, ThumbsUp, Mountain, Waves, Building2, Trees, Sparkles, MapPin, Clock, Home, Utensils, Route as RouteIcon, Compass, Search, ChevronLeft, Calendar, Map, Flag, MessageCircleQuestion } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { getRecommendations, type GetRecommendationsOutput, type RecommendationCategory, type RecommendedItem } from '@/ai/flows/get-recommendations-flow';
 import { getPlaceDescription, type GetPlaceDescriptionOutput } from '@/ai/flows/get-place-description-flow';
