@@ -354,7 +354,7 @@ export default function RecommendationsPage() {
                         <Button 
                             variant="secondary" 
                             size="sm" 
-                            className="mt-auto mx-auto"
+                            className="mt-auto w-full"
                             onClick={() => handleItemCardSearch(item.name)}
                         >
                            <Search className="mr-2 h-4 w-4"/> Explore Details for {item.name}
@@ -400,3 +400,6 @@ export default function RecommendationsPage() {
 
 
 
+
+
+    
