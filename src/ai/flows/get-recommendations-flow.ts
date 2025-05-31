@@ -123,18 +123,17 @@ const getRecommendationsFlow = ai.defineFlow(
       
       if (textResponse.output?.recommendations && textResponse.output.recommendations.length > 0) {
         textItems = textResponse.output.recommendations.map(item => ({
-            ...FALLBACK_ITEM_DETAILS, // Provide defaults for all new fields
+            ...FALLBACK_ITEM_DETAILS, 
             name: item.name || `Unnamed ${category.slice(0,-1)}`,
             tagline: item.tagline || FALLBACK_ITEM_DETAILS.tagline,
             suggestedDuration: item.suggestedDuration || FALLBACK_ITEM_DETAILS.suggestedDuration,
             accommodations: item.accommodations && item.accommodations.length > 0 ? item.accommodations : FALLBACK_ITEM_DETAILS.accommodations,
-            nearbyPlaces: item.nearbyPlaces && item.nearbyPlaces.length > 0 ? item.nearbyPlaces : undefined, // Optional
+            nearbyPlaces: item.nearbyPlaces && item.nearbyPlaces.length > 0 ? item.nearbyPlaces : undefined,
             food: item.food && item.food.length > 0 ? item.food : FALLBACK_ITEM_DETAILS.food,
             routeFromKathmandu: item.routeFromKathmandu || FALLBACK_ITEM_DETAILS.routeFromKathmandu,
         }));
       } else {
         console.warn(`Text generation for category '${category}' returned no valid items or malformed data. Using fallback items.`);
-        // Generate 3 fallback items if AI fails
         textItems = Array(3).fill(null).map((_, i) => ({
             name: `Amazing ${category.slice(0,-1)} #${i + 1}`,
             ...FALLBACK_ITEM_DETAILS,
@@ -142,59 +141,63 @@ const getRecommendationsFlow = ai.defineFlow(
       }
     } catch (error) {
       console.error(`Error generating text recommendations for category ${category}:`, error);
-       // Generate 3 fallback items if AI fails
        textItems = Array(3).fill(null).map((_, i) => ({
             name: `Beautiful ${category.slice(0,-1)} #${i + 1}`,
             ...FALLBACK_ITEM_DETAILS,
         }));
     }
 
-    // Step 2: Generate images for each item
-    const finalItems: RecommendedItem[] = [];
+    // Step 2: Generate images for each item in parallel
+    const imageGenerationPromises = textItems.map(item => {
+      const itemNameStr = typeof item.name === 'string' ? item.name : `Unnamed ${category.slice(0,-1)}`;
+      const imagePrompt = `Generate a high-resolution, captivating travel photograph showcasing "${itemNameStr}" in Nepal, relevant to the category '${category}'. The image should be scenic, inspiring, and suitable for a travel website. Avoid any text overlays or people if not essential to the scene. Focus on natural beauty or iconic man-made structures if applicable.`;
+      
+      return ai.generate({
+        model: 'googleai/gemini-2.0-flash-exp',
+        prompt: imagePrompt,
+        config: {
+          responseModalities: ['TEXT', 'IMAGE'],
+           safetySettings: [ 
+            { category: 'HARM_CATEGORY_HATE_SPEECH', threshold: 'BLOCK_NONE' },
+            { category: 'HARM_CATEGORY_DANGEROUS_CONTENT', threshold: 'BLOCK_NONE' },
+            { category: 'HARM_CATEGORY_HARASSMENT', threshold: 'BLOCK_NONE' },
+            { category: 'HARM_CATEGORY_SEXUALLY_EXPLICIT', threshold: 'BLOCK_NONE' },
+          ],
+        },
+      }).catch(imgError => { // Catch individual image generation errors
+        console.error(`Error generating image for item '${itemNameStr}' in category ${category}:`, imgError);
+        return null; // Return null or a specific error object if an image fails
+      });
+    });
 
-    for (const item of textItems) {
-      let imageUrl = FALLBACK_IMAGE_URL_ITEM;
-      // Ensure item.name is a string, provide a fallback if not
+    const imageResults = await Promise.allSettled(imageGenerationPromises);
+
+    const finalItems: RecommendedItem[] = textItems.map((item, index) => {
       const itemNameStr = typeof item.name === 'string' ? item.name : `Unnamed ${category.slice(0,-1)}`;
       const imageAiHint = `${itemNameStr} ${category} Nepal`; 
+      let imageUrl = FALLBACK_IMAGE_URL_ITEM;
 
-      try {
-        const imagePrompt = `Generate a high-resolution, captivating travel photograph showcasing "${itemNameStr}" in Nepal, relevant to the category '${category}'. The image should be scenic, inspiring, and suitable for a travel website. Avoid any text overlays or people if not essential to the scene. Focus on natural beauty or iconic man-made structures if applicable.`;
-        
-        const imageGenResponse = await ai.generate({
-          model: 'googleai/gemini-2.0-flash-exp',
-          prompt: imagePrompt,
-          config: {
-            responseModalities: ['TEXT', 'IMAGE'],
-             safetySettings: [ 
-              { category: 'HARM_CATEGORY_HATE_SPEECH', threshold: 'BLOCK_NONE' },
-              { category: 'HARM_CATEGORY_DANGEROUS_CONTENT', threshold: 'BLOCK_NONE' },
-              { category: 'HARM_CATEGORY_HARASSMENT', threshold: 'BLOCK_NONE' },
-              { category: 'HARM_CATEGORY_SEXUALLY_EXPLICIT', threshold: 'BLOCK_NONE' },
-            ],
-          },
-        });
-
-        if (imageGenResponse.media?.url) {
-          imageUrl = imageGenResponse.media.url;
+      const result = imageResults[index];
+      if (result.status === 'fulfilled' && result.value && result.value.media?.url) {
+        imageUrl = result.value.media.url;
+      } else {
+        if (result.status === 'rejected') {
+             console.warn(`Image generation promise rejected for item '${itemNameStr}' in category '${category}'. Reason:`, result.reason);
         } else {
-          console.warn(`Image generation for item '${itemNameStr}' in category '${category}' returned no media URL. Using fallback.`);
+             console.warn(`Image generation for item '${itemNameStr}' in category '${category}' returned no media URL or failed. Using fallback.`);
         }
-      } catch (imgError) {
-        console.error(`Error generating image for item '${itemNameStr}' in category ${category}:`, imgError);
       }
       
-      finalItems.push({
-        ...item, // Spread all structured details from item
-        name: itemNameStr, // Ensure name is always a string
+      return {
+        ...item,
+        name: itemNameStr,
         imageUrl: imageUrl,
         imageAiHint: imageAiHint,
-      });
-    }
+      };
+    });
     
     if (finalItems.length === 0) { 
         console.error(`No items could be processed for category ${category}. This is an unexpected state.`);
-        // Return 1 fallback item if somehow finalItems array is empty
         return {
             category: category,
             items: [{
