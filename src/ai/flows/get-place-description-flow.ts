@@ -20,11 +20,11 @@ export type GetPlaceDescriptionInput = z.infer<typeof GetPlaceDescriptionInputSc
 const PlaceDetailsTextModelOutputSchema = z.object({
   name: z.string().describe("The official or commonly known name of the place, should match the input placeName if possible."),
   tagline: z.string().describe("A very short, catchy, and descriptive tagline for the place (1 sentence maximum)."),
-  description: z.string().describe("A detailed and engaging description of the place, its significance, what makes it special for travelers, and what visitors can expect (target 3-5 sentences)."),
-  attractions: z.array(z.string()).min(1).max(5).describe("A list of 1 to 5 key attractions, specific points of interest, or main activities directly related to this place. (e.g., for a lake: specific viewpoints, boating; for a trek: key passes, base camps). Be specific."),
-  howToReach: z.string().describe("Brief, practical information on how to reach this place (e.g., 'Fly to Lukla (30 mins) then trek for 8 days', 'Approx. 6-7 hour tourist bus ride from Kathmandu, then a short taxi', 'Located within Bhaktapur Durbar Square, easily accessible by local bus or taxi from Kathmandu (1 hour)'). Include common modes of transport and general accessibility from a major hub like Kathmandu or Pokhara."),
-  bestTimeToVisit: z.string().describe("The best time of year or specific seasons to visit this place, considering weather, views, and local conditions (e.g., 'Spring (March-May) and Autumn (September-November) for clear skies and pleasant trekking weather')."),
-  localTips: z.array(z.string()).min(1).max(3).describe("A list of 1 to 3 practical local tips for visitors (e.g., 'Carry enough water and snacks.', 'Respect local customs by dressing modestly.', 'Entry permits (TIMS and National Park) are required for this trek.').")
+  description: z.string().describe("A detailed and engaging description of the place, its significance, what makes it special for travelers, and what visitors can expect (target 3-5 sentences). All information must be specific to its location and context within Nepal."),
+  attractions: z.array(z.string()).min(1).max(5).describe("A list of 1 to 5 key attractions, specific points of interest, or main activities directly related to this place within Nepal. (e.g., for a lake: specific viewpoints, boating; for a trek: key passes, base camps). Be specific."),
+  howToReach: z.string().describe("Brief, practical information on how to reach this place within Nepal (e.g., 'Fly to Lukla (30 mins) then trek for 8 days', 'Approx. 6-7 hour tourist bus ride from Kathmandu, then a short taxi', 'Located within Bhaktapur Durbar Square, easily accessible by local bus or taxi from Kathmandu (1 hour)'). Include common modes of transport and general accessibility from a major hub like Kathmandu or Pokhara."),
+  bestTimeToVisit: z.string().describe("The best time of year or specific seasons to visit this place in Nepal, considering weather, views, and local conditions (e.g., 'Spring (March-May) and Autumn (September-November) for clear skies and pleasant trekking weather')."),
+  localTips: z.array(z.string()).min(1).max(3).describe("A list of 1 to 3 practical local tips for visitors relevant to this place in Nepal (e.g., 'Carry enough water and snacks.', 'Respect local customs by dressing modestly.', 'Entry permits (TIMS and National Park) are required for this trek.').")
 });
 
 
@@ -41,7 +41,7 @@ const FALLBACK_PLACE_DETAILS: Omit<GetPlaceDescriptionOutput, 'imageUrl' | 'imag
     tagline: "An intriguing destination in Nepal offering unique experiences and sights.",
     description: "Discover the unique beauty, culture, and significance of this fascinating place in Nepal. More detailed information is being curated by our AI.",
     attractions: ["Key points of interest and activities will be listed here soon."],
-    howToReach: "Typically accessible from major cities like Kathmandu or Pokhara; specific routes and travel times depend on the exact location and mode of transport.",
+    howToReach: "Typically accessible from major cities like Kathmandu or Pokhara; specific routes and travel times depend on the exact location and mode of transport within Nepal.",
     bestTimeToVisit: "Nepal offers diverse climates; the best time to visit varies by region and altitude. Generally, spring and autumn are popular.",
     localTips: ["Always respect local culture and traditions.", "Stay hydrated, especially at higher altitudes.", "Be prepared for varying weather conditions."]
 };
@@ -63,23 +63,23 @@ const getPlaceDescriptionFlow = ai.defineFlow(
 
     try {
       // Step 1: Get structured text details from the text model
-      const textPrompt = `You are an expert Nepal travel guide and content creator. For the specific place named "${placeName}" in Nepal, provide detailed, engaging, and accurate information for a travel website. If the place is a trek, focus on the trek itself (e.g., "Everest Base Camp Trek"). If it's a specific temple, focus on that temple.
+      const textPrompt = `You are an expert Nepal travel guide and content creator. For the specific place named "${placeName}" located **in Nepal**, provide detailed, engaging, and accurate information for a travel website. If the place name is ambiguous or could exist outside Nepal, prioritize results and context specific to **Nepal**. If the place is a trek, focus on the trek itself (e.g., "Everest Base Camp Trek"). If it's a specific temple, focus on that temple.
 
-      Generate the following as a JSON object. Ensure all fields are populated with relevant and specific information:
+      Generate the following as a JSON object. Ensure all fields are populated with relevant and specific information pertaining to its location and context **within Nepal**:
       1.  **name:** The official or commonly known name, ideally matching "${placeName}".
       2.  **tagline:** A very short, catchy, and descriptive tagline for "${placeName}" (maximum 1 sentence, e.g., "The spiritual heart of Kathmandu, a UNESCO World Heritage site.").
-      3.  **description:** A detailed and engaging description of "${placeName}", covering its significance, what makes it special for travelers, and what visitors can expect. Aim for 3-5 well-crafted sentences.
-      4.  **attractions:** A list (JSON array of strings) of 2 to 4 key attractions, specific points of interest, or main activities directly related to this place. (e.g., for a lake: "Boating on the serene waters", "Hiking to a nearby viewpoint for panoramic vistas"; for a trek: "Crossing the Thorong La Pass", "Reaching Annapurna Base Camp"). Be specific and actionable.
-      5.  **howToReach:** Brief, practical information on how to reach "${placeName}". Include common modes of transport and general accessibility, ideally from a major hub like Kathmandu or Pokhara. (e.g., "Fly from Kathmandu to Lukla (30 mins), then begin the 8-day trek.", "Approx. 6-7 hour tourist bus ride from Kathmandu to Pokhara, then a 30-minute taxi to Phewa Lake's north shore.", "Located within Bhaktapur Durbar Square, easily accessible by local bus or taxi from Kathmandu (approx. 1 hour).").
-      6.  **bestTimeToVisit:** The best time of year or specific seasons to visit "${placeName}", considering weather, views, and local conditions. (e.g., "Spring (March to May) and Autumn (September to November) offer clear skies and pleasant trekking weather.", "October to March for comfortable temperatures in the Terai region.").
-      7.  **localTips:** A list (JSON array of strings) of 2 to 3 practical and specific local tips for visitors (e.g., "Carry enough water and snacks for the day hike.", "Respect local customs by dressing modestly when visiting monasteries.", "Entry permits (TIMS card and National Park permit) are required for this trek and can be obtained in Kathmandu or Pokhara.").
+      3.  **description:** A detailed and engaging description of "${placeName}", covering its significance, what makes it special for travelers, and what visitors can expect. Aim for 3-5 well-crafted sentences. All information must be specific to its context **within Nepal**.
+      4.  **attractions:** A list (JSON array of strings) of 2 to 4 key attractions, specific points of interest, or main activities directly related to this place **in Nepal**. (e.g., for a lake: "Boating on the serene waters", "Hiking to a nearby viewpoint for panoramic vistas"; for a trek: "Crossing the Thorong La Pass", "Reaching Annapurna Base Camp"). Be specific and actionable.
+      5.  **howToReach:** Brief, practical information on how to reach "${placeName}" **within Nepal**. Include common modes of transport and general accessibility, ideally from a major hub like Kathmandu or Pokhara. (e.g., "Fly from Kathmandu to Lukla (30 mins), then begin the 8-day trek.", "Approx. 6-7 hour tourist bus ride from Kathmandu to Pokhara, then a 30-minute taxi to Phewa Lake's north shore.", "Located within Bhaktapur Durbar Square, easily accessible by local bus or taxi from Kathmandu (approx. 1 hour).").
+      6.  **bestTimeToVisit:** The best time of year or specific seasons to visit "${placeName}" **in Nepal**, considering weather, views, and local conditions. (e.g., "Spring (March to May) and Autumn (September to November) offer clear skies and pleasant trekking weather.", "October to March for comfortable temperatures in the Terai region.").
+      7.  **localTips:** A list (JSON array of strings) of 2 to 3 practical and specific local tips for visitors relevant to this place **in Nepal** (e.g., "Carry enough water and snacks for the day hike.", "Respect local customs by dressing modestly when visiting monasteries.", "Entry permits (TIMS card and National Park permit) are required for this trek and can be obtained in Kathmandu or Pokhara.").
 
       Your output MUST be a JSON object strictly matching this structure. Do not add any extra explanations outside the JSON.
-      Example for input "Rara Lake":
+      Example for input "Rara Lake" (which is in Nepal):
       {
         "name": "Rara Lake",
         "tagline": "Nepal's largest and deepest freshwater lake, a stunning turquoise jewel nestled in the remote Himalayas.",
-        "description": "Rara Lake, located in the Mugu district, is a breathtaking high-altitude lake renowned for its crystal-clear waters and serene surroundings. It's part of Rara National Park, offering a pristine natural environment with diverse flora and fauna. The journey to Rara itself is an adventure, rewarding visitors with unparalleled tranquility and stunning alpine scenery.",
+        "description": "Rara Lake, located in the Mugu district of Nepal, is a breathtaking high-altitude lake renowned for its crystal-clear waters and serene surroundings. It's part of Rara National Park, offering a pristine natural environment with diverse flora and fauna. The journey to Rara itself is an adventure, rewarding visitors with unparalleled tranquility and stunning alpine scenery.",
         "attractions": ["Boating on the lake's placid waters", "Horse riding around the lake perimeter", "Hiking to Murma Top for panoramic Himalayan views", "Exceptional bird watching opportunities"],
         "howToReach": "Fly from Nepalgunj to Talcha Airport (approx. 45 mins), then a 2-3 hour walk/hike to the lake. Alternatively, a multi-day trek from Jumla is possible for adventurers.",
         "bestTimeToVisit": "Spring (April-May) and Autumn (September-October) for clear skies, blooming wildflowers (spring), and pleasant temperatures.",
@@ -90,7 +90,7 @@ const getPlaceDescriptionFlow = ai.defineFlow(
       const textResponse = await ai.generate({
         prompt: textPrompt,
         output: { schema: PlaceDetailsTextModelOutputSchema },
-        config: { temperature: 0.4 }
+        config: { temperature: 0.3 } // Reduced temperature for more factual and constrained output
       });
 
       if (textResponse.output && textResponse.output.name) { // Check if AI returned a name
@@ -119,7 +119,7 @@ const getPlaceDescriptionFlow = ai.defineFlow(
     const finalPlaceNameForImage = textDetails.name;
     const imageAiHint = `${finalPlaceNameForImage} Nepal travel photo`;
     try {
-      const imagePrompt = `Generate a high-resolution, captivating travel photograph showcasing "${finalPlaceNameForImage}" in Nepal. The image should be scenic, inspiring, and suitable for a travel website. Focus on its most iconic aspect or viewpoint. Avoid any text overlays or people if not essential to the scene. Aim for a photorealistic style.`;
+      const imagePrompt = `Generate a high-resolution, captivating travel photograph showcasing "${finalPlaceNameForImage}" **in Nepal**. The image should be scenic, inspiring, and suitable for a travel website. Focus on its most iconic aspect or viewpoint. Avoid any text overlays or people if not essential to the scene. Aim for a photorealistic style.`;
       const imageGenResponse = await ai.generate({
         model: 'googleai/gemini-2.0-flash-exp',
         prompt: imagePrompt,
@@ -149,4 +149,6 @@ const getPlaceDescriptionFlow = ai.defineFlow(
     };
   }
 );
+    
+
     

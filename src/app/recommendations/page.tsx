@@ -7,7 +7,7 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
 import { Input } from '@/components/ui/input';
-import { Loader2, Star, Info, ImageOff, ThumbsUp, Mountain, Waves, Building2, Trees, Sparkles, MapPin, Clock, Home, Utensils, Route as RouteIcon, Compass, Search, ChevronLeft, Calendar, Map, Flag, MessageCircleQuestion } from 'lucide-react';
+import { Loader2, Star, Info, ImageOff, Mountain, Waves, Building2, Trees, Sparkles, MapPin, Clock, Home, Utensils, Route as RouteIcon, Compass, Search, ChevronLeft, Calendar, Map, Flag, MessageCircleQuestion } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { getRecommendations, type GetRecommendationsOutput, type RecommendationCategory, type RecommendedItem } from '@/ai/flows/get-recommendations-flow';
 import { getPlaceDescription, type GetPlaceDescriptionOutput } from '@/ai/flows/get-place-description-flow';
@@ -19,7 +19,7 @@ const categories: { name: string; id: RecommendationCategory; icon: React.Elemen
   { name: "Lakes", id: "lakes", icon: Waves, description: "Explore serene glacial lakes and vibrant lakeside towns." },
   { name: "Cities", id: "cities", icon: Building2, description: "Immerse yourself in ancient cultures and bustling urban centers." },
   { name: "National Parks", id: "national-parks", icon: Trees, description: "Encounter diverse wildlife in pristine natural reserves." },
-  { name: "Hike", id: "hike", icon: Mountain, description: "Explore scenic hiking trails and enjoyable walks with beautiful views." },
+  { name: "Hike", id: "hike", icon: Mountain, description: "Explore scenic day hiking trails and enjoyable walks with beautiful views within or around the Kathmandu Valley." },
 ];
 
 type ActiveView = 'categories' | 'searchResult';
@@ -129,7 +129,7 @@ export default function RecommendationsPage() {
     const IconComponent = icon;
     const uniqueValue = `${keyPrefix}-${label.toLowerCase().replace(/\s+/g, '-')}`;
     return (
-      <AccordionItem value={uniqueValue}>
+      <AccordionItem value={uniqueValue} key={uniqueValue}>
         <AccordionTrigger className="text-base font-medium hover:text-primary py-3 px-1">
           <div className="flex items-center gap-2">
             <IconComponent className="h-5 w-5 text-primary" /> {label}
@@ -209,7 +209,7 @@ export default function RecommendationsPage() {
               </Card>
             )}
             {!isSearchingPlace && !searchError && searchResult && (
-              <Card className="shadow-xl overflow-hidden border flex flex-col bg-card hover:shadow-2xl transition-shadow duration-300 max-w-3xl mx-auto">
+              <Card className="shadow-xl overflow-hidden border flex flex-col bg-card hover:shadow-2xl transition-shadow duration-300 max-w-2xl mx-auto">
                 <div className="relative aspect-[16/10] w-full">
                    {!searchImageError && searchResult.imageUrl ? (
                     <Image
@@ -217,7 +217,7 @@ export default function RecommendationsPage() {
                       alt={`AI generated image for ${searchResult.name}`}
                       fill
                       className="object-cover"
-                      sizes="(max-width: 768px) 100vw, (max-width: 1200px) 75vw, 50vw"
+                      sizes="(max-width: 768px) 100vw, (max-width: 1024px) 66vw, 50vw"
                       onError={handleSearchImageError}
                       priority
                       data-ai-hint={searchResult.imageAiHint || `${searchResult.name} Nepal`}
@@ -236,10 +236,10 @@ export default function RecommendationsPage() {
                   <p className="text-md text-muted-foreground mb-1 italic">{searchResult.tagline}</p>
                   <p className="text-base text-foreground mb-4 whitespace-pre-line">{searchResult.description}</p>
                   <Accordion type="single" collapsible className="w-full -mx-1">
-                    {renderDetailAccordionItem(Map, "Key Attractions / Activities", searchResult.attractions, `search-attr-${searchResult.name}`)}
-                    {renderDetailAccordionItem(RouteIcon, "How to Reach", searchResult.howToReach, `search-route-${searchResult.name}`)}
-                    {renderDetailAccordionItem(Calendar, "Best Time to Visit", searchResult.bestTimeToVisit, `search-time-${searchResult.name}`)}
-                    {renderDetailAccordionItem(MessageCircleQuestion, "Local Tips", searchResult.localTips, `search-tips-${searchResult.name}`)}
+                    {renderDetailAccordionItem(Map, "Key Attractions / Activities", searchResult.attractions, `search-attr-${searchResult.name.replace(/\s+/g, '-')}`)}
+                    {renderDetailAccordionItem(RouteIcon, "How to Reach", searchResult.howToReach, `search-howtoreach-${searchResult.name.replace(/\s+/g, '-')}`)}
+                    {renderDetailAccordionItem(Calendar, "Best Time to Visit", searchResult.bestTimeToVisit, `search-time-${searchResult.name.replace(/\s+/g, '-')}`)}
+                    {renderDetailAccordionItem(MessageCircleQuestion, "Local Tips", searchResult.localTips, `search-tips-${searchResult.name.replace(/\s+/g, '-')}`)}
                   </Accordion>
                 </CardContent>
               </Card>
@@ -310,7 +310,7 @@ export default function RecommendationsPage() {
                             alt={`AI generated image for ${item.name}`}
                             fill
                             className="object-cover"
-                            sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
+                            sizes="(max-width: 768px) 100vw, 50vw"
                             onError={() => {
                                 console.warn(`Failed to load image: ${item.imageUrl} for item ${item.name}`);
                                 handleItemImageError(item.name);
@@ -329,18 +329,18 @@ export default function RecommendationsPage() {
                         </div>
                       </div>
                       <CardContent className="p-4 pt-3 md:p-5 md:pt-4 flex-grow flex flex-col">
-                        <p className="text-sm text-muted-foreground mb-3 line-clamp-3">{item.tagline}</p>
+                        <p className="text-sm text-muted-foreground mb-3 line-clamp-3 h-12">{item.tagline}</p> 
                         <Accordion type="single" collapsible className="w-full -mx-1">
-                            {renderDetailAccordionItem(Clock, "Suggested Duration", item.suggestedDuration, `cat-duration-${item.name}`)}
-                            {renderDetailAccordionItem(Home, "Accommodations", item.accommodations, `cat-accomo-${item.name}`)}
-                            {item.nearbyPlaces && item.nearbyPlaces.length > 0 && renderDetailAccordionItem(Compass, "Nearby Places", item.nearbyPlaces, `cat-nearby-${item.name}`)}
-                            {renderDetailAccordionItem(Utensils, "Local Food", item.food, `cat-food-${item.name}`)}
-                            {renderDetailAccordionItem(RouteIcon, "Route from Kathmandu", item.routeFromKathmandu, `cat-route-${item.name}`)}
+                            {renderDetailAccordionItem(Clock, "Suggested Duration", item.suggestedDuration, `cat-duration-${item.name.replace(/\s+/g, '-')}`)}
+                            {renderDetailAccordionItem(Home, "Accommodations", item.accommodations, `cat-accomo-${item.name.replace(/\s+/g, '-')}`)}
+                            {item.nearbyPlaces && item.nearbyPlaces.length > 0 && renderDetailAccordionItem(Compass, "Nearby Places", item.nearbyPlaces, `cat-nearby-${item.name.replace(/\s+/g, '-')}`)}
+                            {renderDetailAccordionItem(Utensils, "Local Food", item.food, `cat-food-${item.name.replace(/\s+/g, '-')}`)}
+                            {renderDetailAccordionItem(RouteIcon, "Route from Kathmandu", item.routeFromKathmandu, `cat-route-${item.name.replace(/\s+/g, '-')}`)}
                         </Accordion>
                         <Button 
                             variant="outline" 
                             size="sm" 
-                            className="mt-4 w-full text-primary border-primary hover:bg-primary/10"
+                            className="mt-auto pt-2 w-full text-primary border-primary hover:bg-primary/10"
                             onClick={() => handleItemCardSearch(item.name)}
                         >
                            <Search className="mr-2 h-4 w-4"/> Explore Details for {item.name}
@@ -378,5 +378,8 @@ export default function RecommendationsPage() {
   );
 }
     
+
+    
+
 
     
