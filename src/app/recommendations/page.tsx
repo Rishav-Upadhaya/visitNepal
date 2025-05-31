@@ -271,10 +271,10 @@ export default function RecommendationsPage() {
             )}
             {!isSearchingPlace && !searchError && searchResult && (
               isSearchResultNotFoundInNepal ? (
-                <Card className="shadow-xl flex flex-col items-center justify-center min-h-[300px] text-center bg-amber-50 dark:bg-amber-900/20 border-amber-400 dark:border-amber-600 p-6">
-                  <Info className="h-12 w-12 text-amber-500 dark:text-amber-400 mx-auto mb-4" />
-                  <CardTitle className="text-2xl text-amber-700 dark:text-amber-300">Place Information Not Available</CardTitle>
-                  <CardDescription className="text-lg mt-2 text-amber-600 dark:text-amber-500">
+                <Card className="shadow-lg flex flex-col items-center justify-center min-h-[300px] text-center bg-muted/30 border border-primary/20 p-6">
+                  <MessageCircleQuestion className="h-12 w-12 text-primary/80 mx-auto mb-4" />
+                  <CardTitle className="text-2xl text-primary">Place Information Not Available</CardTitle>
+                  <CardDescription className="text-lg mt-2 text-muted-foreground">
                      Our AI could not find specific details for "{searchResult.name}" within Nepal. Please ensure the name is correct and the place is located in Nepal, or try a different search.
                   </CardDescription>
                 </Card>
