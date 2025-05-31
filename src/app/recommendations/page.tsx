@@ -11,7 +11,7 @@ import { Loader2, Star, Info, ImageOff, Mountain, Waves, Building2, Trees, Spark
 import { useToast } from '@/hooks/use-toast';
 import { getRecommendations, type GetRecommendationsOutput, type RecommendationCategory, type RecommendedItem } from '@/ai/flows/get-recommendations-flow';
 import { getPlaceDescription, type GetPlaceDescriptionOutput } from '@/ai/flows/get-place-description-flow';
-import { NOT_FOUND_IN_NEPAL_DESCRIPTION_SENTINEL } from '@/types'; // Import from types
+import { NOT_FOUND_IN_NEPAL_DESCRIPTION_SENTINEL } from '@/types';
 import { logUserEvent } from '@/lib/logger';
 import { cn } from '@/lib/utils';
 
@@ -352,9 +352,9 @@ export default function RecommendationsPage() {
                             {renderDetailAccordionItem(RouteIcon, "Route from Kathmandu", item.routeFromKathmandu, `cat-route-${item.name.replace(/\s+/g, '-')}`)}
                         </Accordion>
                         <Button 
-                            variant="outline" 
+                            variant="secondary" 
                             size="sm" 
-                            className="mt-auto pt-2 w-full text-primary border-primary hover:bg-primary/10"
+                            className="mt-auto mx-auto"
                             onClick={() => handleItemCardSearch(item.name)}
                         >
                            <Search className="mr-2 h-4 w-4"/> Explore Details for {item.name}
@@ -397,5 +397,6 @@ export default function RecommendationsPage() {
 
 
     
+
 
 
