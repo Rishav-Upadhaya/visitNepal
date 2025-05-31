@@ -10,7 +10,8 @@ import { Input } from '@/components/ui/input';
 import { Loader2, Star, Info, ImageOff, Mountain, Waves, Building2, Trees, Sparkles, MapPin, Clock, Home, Utensils, Route as RouteIcon, Compass, Search, ChevronLeft, Calendar, Map, MessageCircleQuestion, Sunrise } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { getRecommendations, type GetRecommendationsOutput, type RecommendationCategory, type RecommendedItem } from '@/ai/flows/get-recommendations-flow';
-import { getPlaceDescription, type GetPlaceDescriptionOutput, NOT_FOUND_IN_NEPAL_DESCRIPTION_SENTINEL } from '@/ai/flows/get-place-description-flow';
+import { getPlaceDescription, type GetPlaceDescriptionOutput } from '@/ai/flows/get-place-description-flow';
+import { NOT_FOUND_IN_NEPAL_DESCRIPTION_SENTINEL } from '@/types'; // Import from types
 import { logUserEvent } from '@/lib/logger';
 import { cn } from '@/lib/utils';
 
@@ -396,4 +397,5 @@ export default function RecommendationsPage() {
 
 
     
+
 

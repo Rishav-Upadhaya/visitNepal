@@ -6,11 +6,11 @@
  * - getPlaceDescription - Fetches details for a given place.
  * - GetPlaceDescriptionInput - Input type for the getPlaceDescription function.
  * - GetPlaceDescriptionOutput - Output type for the getPlaceDescription function.
- * - NOT_FOUND_IN_NEPAL_DESCRIPTION_SENTINEL - A sentinel string to indicate AI couldn't find the place in Nepal.
  */
 
 import {ai} from '@/ai/genkit';
 import {z} from 'genkit';
+import { NOT_FOUND_IN_NEPAL_DESCRIPTION_SENTINEL } from '@/types'; // Import from types
 
 const GetPlaceDescriptionInputSchema = z.object({
   placeName: z.string().describe('The name of the place in Nepal to get details for (e.g., "Pashupatinath Temple", "Rara Lake", "Everest Base Camp Trek").'),
@@ -48,9 +48,6 @@ const PARTIAL_FALLBACK_DETAILS: Omit<GetPlaceDescriptionOutput, 'imageUrl' | 'im
     bestTimeToVisit: "Nepal offers diverse climates; the best time to visit varies by region and altitude. Generally, spring and autumn are popular.",
     localTips: ["Always respect local culture and traditions.", "Stay hydrated, especially at higher altitudes.", "Be prepared for varying weather conditions."]
 };
-
-// Sentinel description to indicate AI could not find specific details for the place in Nepal.
-export const NOT_FOUND_IN_NEPAL_DESCRIPTION_SENTINEL = "Our AI could not find specific details for this place within Nepal. Please try a different search or check the spelling.";
 
 // Fallback used when AI provides no useful top-level info, implying place not found in Nepal or no details available.
 const NOT_FOUND_IN_NEPAL_FALLBACK_DETAILS: Omit<GetPlaceDescriptionOutput, 'imageUrl' | 'imageAiHint' | 'name'> = {
@@ -167,3 +164,4 @@ const getPlaceDescriptionFlow = ai.defineFlow(
     
 
     
+

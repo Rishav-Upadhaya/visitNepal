@@ -175,3 +175,6 @@ export type SelectedFeatureDetails = {
   aiDescription?: string | null; // AI-generated description
   originalProperties?: any; // Original properties from TopoJSON or city data
 };
+
+// Sentinel description to indicate AI could not find specific details for the place in Nepal.
+export const NOT_FOUND_IN_NEPAL_DESCRIPTION_SENTINEL = "Our AI could not find specific details for this place within Nepal. Please try a different search or check the spelling.";
