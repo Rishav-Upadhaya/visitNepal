@@ -164,7 +164,7 @@ Ensure your response strictly adheres to this JSON structure and provides all re
 `;
 };
 
-const FALLBACK_IMAGE_URL_ITEM = "https://placehold.co/600x400.png?text=Nepal+Attraction";
+const FALLBACK_IMAGE_URL_ITEM = "https://placehold.co/600x400.png";
 const FALLBACK_ITEM_DETAILS: Omit<RecommendedItem, 'imageUrl' | 'imageAiHint' | 'name'> = {
     tagline: "An amazing destination in Nepal with unique experiences and beautiful sights.",
     suggestedDuration: "Varies",
@@ -196,9 +196,9 @@ const getRecommendationsFlow = ai.defineFlow(
       const textResponse = await ai.generate({
         prompt: textPrompt,
         output: { schema: TextModelResponseSchema },
-        config: { 
+        config: {
             temperature: 0.3,
-            safetySettings: [ 
+            safetySettings: [
                 { category: 'HARM_CATEGORY_HATE_SPEECH', threshold: 'BLOCK_NONE' },
                 { category: 'HARM_CATEGORY_DANGEROUS_CONTENT', threshold: 'BLOCK_NONE' },
                 { category: 'HARM_CATEGORY_HARASSMENT', threshold: 'BLOCK_NONE' },
@@ -210,7 +210,7 @@ const getRecommendationsFlow = ai.defineFlow(
       if (textResponse.output?.recommendations && textResponse.output.recommendations.length > 0) {
         textItems = textResponse.output.recommendations.map(item => ({
             ...FALLBACK_ITEM_DETAILS,
-            name: item.name || `Unnamed ${category.slice(0,-1)}`, 
+            name: item.name || `Unnamed ${category.slice(0,-1)}`,
             tagline: item.tagline || FALLBACK_ITEM_DETAILS.tagline,
             suggestedDuration: item.suggestedDuration || FALLBACK_ITEM_DETAILS.suggestedDuration,
             accommodations: item.accommodations && item.accommodations.length > 0 ? item.accommodations : FALLBACK_ITEM_DETAILS.accommodations,
@@ -223,7 +223,7 @@ const getRecommendationsFlow = ai.defineFlow(
         // If it's an "explore more" request and AI returns nothing, we want an empty array, not fallbacks.
         if (!excludeNames || excludeNames.length === 0) {
             textItems = Array(3).fill(null).map((_, i) => ({
-                name: `Amazing ${category.endsWith('s') ? category.slice(0,-1) : category} #${i + 1}`, 
+                name: `Amazing ${category.endsWith('s') ? category.slice(0,-1) : category} #${i + 1}`,
                 ...FALLBACK_ITEM_DETAILS,
             }));
         } else {
@@ -233,7 +233,7 @@ const getRecommendationsFlow = ai.defineFlow(
     } catch (error) {
       console.error(`Error generating text recommendations for category ${category} (excluding: ${excludeNames?.join(', ')}):`, error);
        if (!excludeNames || excludeNames.length === 0) {
-            textItems = Array(3).fill(null).map((_, i) => ({ 
+            textItems = Array(3).fill(null).map((_, i) => ({
                 name: `Beautiful ${category.endsWith('s') ? category.slice(0,-1) : category} #${i + 1}`,
                 ...FALLBACK_ITEM_DETAILS,
             }));
@@ -249,7 +249,7 @@ const getRecommendationsFlow = ai.defineFlow(
             items: [],
         };
     }
-    
+
     // Step 2: Generate images for each item in parallel
     const imageGenerationPromises = textItems.map(item => {
       const itemNameStr = typeof item.name === 'string' ? item.name : `Unnamed ${category.slice(0,-1)}`;
@@ -267,9 +267,9 @@ const getRecommendationsFlow = ai.defineFlow(
             { category: 'HARM_CATEGORY_SEXUALLY_EXPLICIT', threshold: 'BLOCK_NONE' },
           ],
         },
-      }).catch(imgError => { 
+      }).catch(imgError => {
         console.error(`Error generating image for item '${itemNameStr}' in category ${category}:`, imgError);
-        return null; 
+        return null;
       });
     });
 
@@ -277,7 +277,10 @@ const getRecommendationsFlow = ai.defineFlow(
 
     const finalItems: RecommendedItem[] = textItems.map((item, index) => {
       const itemNameStr = typeof item.name === 'string' ? item.name : `Unnamed ${category.slice(0,-1)}`;
-      const imageAiHint = `${itemNameStr} ${category} Nepal`;
+      const firstItemWord = itemNameStr.split(' ')[0];
+      const firstCategoryWord = category.split('-')[0]; // e.g. "national" from "national-parks"
+      const imageAiHint = `${firstItemWord} ${firstCategoryWord}`;
+
       let imageUrl = FALLBACK_IMAGE_URL_ITEM;
 
       const result = imageResults[index];
@@ -286,21 +289,21 @@ const getRecommendationsFlow = ai.defineFlow(
       } else {
         if (result.status === 'rejected') {
              console.warn(`Image generation promise rejected for item '${itemNameStr}' in category '${category}'. Reason:`, result.reason);
-        } else {
-             console.warn(`Image generation for item '${itemNameStr}' in category '${category}' returned no media URL or failed. Using fallback.`);
+        } else { // Covers result.value being null or result.value.media.url being absent
+             console.warn(`Image generation for item '${itemNameStr}' in category '${category}' returned no media URL or failed (result.value: ${JSON.stringify(result.value)}). Using fallback.`);
         }
       }
 
       return {
         ...item,
-        name: itemNameStr, 
+        name: itemNameStr,
         imageUrl: imageUrl,
         imageAiHint: imageAiHint,
       };
     });
-    
+
     // This final fallback shouldn't be hit if textItems.length > 0, but kept as a safety net.
-    if (finalItems.length === 0) { 
+    if (finalItems.length === 0) {
         console.error(`No items could be processed for category ${category} (excluding: ${excludeNames?.join(', ')}). This is an unexpected state if textItems had content.`);
         return {
             category: category,
@@ -308,7 +311,7 @@ const getRecommendationsFlow = ai.defineFlow(
                 name: `Explore ${category}`,
                 ...FALLBACK_ITEM_DETAILS,
                 imageUrl: FALLBACK_IMAGE_URL_ITEM,
-                imageAiHint: `${category} Nepal generic`
+                imageAiHint: `${category.split('-')[0]} Nepal` // Simplified fallback hint
             }]
         };
     }

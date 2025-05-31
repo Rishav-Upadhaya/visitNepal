@@ -37,7 +37,7 @@ const GetPlaceDescriptionOutputSchema = PlaceDetailsTextModelOutputSchema.extend
 export type GetPlaceDescriptionOutput = z.infer<typeof GetPlaceDescriptionOutputSchema>;
 
 
-const FALLBACK_IMAGE_URL_PLACE = "https://placehold.co/800x500.png?text=Nepal+Attraction";
+const FALLBACK_IMAGE_URL_PLACE = "https://placehold.co/800x500.png";
 
 // Fallback used when AI returns some valid structure but specific fields might be missing.
 const PARTIAL_FALLBACK_DETAILS: Omit<GetPlaceDescriptionOutput, 'imageUrl' | 'imageAiHint' | 'name'> = {
@@ -104,7 +104,7 @@ const getPlaceDescriptionFlow = ai.defineFlow(
       const textResponse = await ai.generate({
         prompt: textPrompt,
         output: { schema: PlaceDetailsTextModelOutputSchema },
-        config: { 
+        config: {
             temperature: 0.3,
             safetySettings: [ // Added safety settings
                 { category: 'HARM_CATEGORY_HATE_SPEECH', threshold: 'BLOCK_NONE' },
@@ -112,12 +112,12 @@ const getPlaceDescriptionFlow = ai.defineFlow(
                 { category: 'HARM_CATEGORY_HARASSMENT', threshold: 'BLOCK_NONE' },
                 { category: 'HARM_CATEGORY_SEXUALLY_EXPLICIT', threshold: 'BLOCK_NONE' },
             ],
-        } 
+        }
       });
 
-      if (textResponse.output && textResponse.output.name) { 
+      if (textResponse.output && textResponse.output.name) {
         textDetails = {
-            name: textResponse.output.name, 
+            name: textResponse.output.name,
             tagline: textResponse.output.tagline || PARTIAL_FALLBACK_DETAILS.tagline,
             description: textResponse.output.description || PARTIAL_FALLBACK_DETAILS.description,
             attractions: textResponse.output.attractions && textResponse.output.attractions.length > 0 ? textResponse.output.attractions : PARTIAL_FALLBACK_DETAILS.attractions,
@@ -131,13 +131,18 @@ const getPlaceDescriptionFlow = ai.defineFlow(
       }
     } catch (error) {
       console.error(`Error generating text details for place ${placeName}:`, error);
-      textDetails = { name: placeName, ...NOT_FOUND_IN_NEPAL_FALLBACK_DETAILS }; 
+      textDetails = { name: placeName, ...NOT_FOUND_IN_NEPAL_FALLBACK_DETAILS };
     }
 
     // Step 2: Generate image for the place
     let imageUrl = FALLBACK_IMAGE_URL_PLACE;
     const finalPlaceNameForImage = textDetails.name;
-    const imageAiHint = `${finalPlaceNameForImage} Nepal travel photo`;
+
+    // Generate a concise 1-2 word hint for Unsplash/placeholder
+    const placeNameWords = finalPlaceNameForImage.split(' ');
+    const imageAiHint = placeNameWords.slice(0, 2).join(' ');
+
+
     try {
       const imagePrompt = `Generate a high-resolution, captivating travel photograph showcasing "${finalPlaceNameForImage}" **in Nepal**. The image should be scenic, inspiring, and suitable for a travel website. Focus on its most iconic aspect or viewpoint. Avoid any text overlays or people if not essential to the scene. Aim for a photorealistic style.`;
       const imageGenResponse = await ai.generate({
@@ -163,13 +168,9 @@ const getPlaceDescriptionFlow = ai.defineFlow(
     }
 
     return {
-      ...textDetails, 
+      ...textDetails,
       imageUrl,
       imageAiHint,
     };
   }
 );
-    
-
-    
-
