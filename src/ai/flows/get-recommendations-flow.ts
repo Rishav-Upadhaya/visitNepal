@@ -65,7 +65,7 @@ const generateTextPromptStructure = (category: RecommendationCategory): string =
 
   if (category === "treks") {
     itemFocus = "trekking routes";
-    categorySpecificInstruction = "Focus on well-known multi-day trekking expeditions in mountainous regions.";
+    categorySpecificInstruction = "Focus on well-known multi-day trekking expeditions in mountainous regions of Nepal.";
     exampleItemName = "Everest Base Camp Trek";
     exampleTagline = "Journey to the foot of the world's highest peak, an iconic Himalayan adventure.";
     exampleDuration = "12-14 days";
@@ -75,7 +75,7 @@ const generateTextPromptStructure = (category: RecommendationCategory): string =
     exampleRoute = "Fly from Kathmandu to Lukla (30 mins), then begin the trek.";
   } else if (category === "lakes") {
     itemFocus = "lakes";
-    categorySpecificInstruction = "Highlight both famous and lesser-known lakes, emphasizing their natural beauty and accessibility.";
+    categorySpecificInstruction = "Highlight both famous and lesser-known lakes in Nepal, emphasizing their natural beauty and accessibility.";
     exampleItemName = "Phewa Lake";
     exampleTagline = "Pokhara's iconic lake, offering stunning Annapurna reflections, boating, and vibrant lakeside life.";
     exampleDuration = "1-2 days (to explore Pokhara and enjoy the lake)";
@@ -85,7 +85,7 @@ const generateTextPromptStructure = (category: RecommendationCategory): string =
     exampleRoute = "Fly to Pokhara (25 mins) or take a tourist bus (6-8 hours) from Kathmandu.";
   } else if (category === "cities") {
     itemFocus = "cities";
-    categorySpecificInstruction = "Showcase cities known for their cultural heritage, historical significance, or vibrant urban life.";
+    categorySpecificInstruction = "Showcase cities in Nepal known for their cultural heritage, historical significance, or vibrant urban life.";
     exampleItemName = "Bhaktapur Durbar Square";
     exampleTagline = "A UNESCO World Heritage site, showcasing ancient Newari art, architecture, and vibrant traditions.";
     exampleDuration = "Full day visit";
@@ -95,7 +95,7 @@ const generateTextPromptStructure = (category: RecommendationCategory): string =
     exampleRoute = "Approx. 1-hour taxi or local bus ride east from Kathmandu.";
   } else if (category === "national-parks") {
     itemFocus = "national parks";
-    categorySpecificInstruction = "Detail national parks, focusing on their unique ecosystems, wildlife, and conservation efforts.";
+    categorySpecificInstruction = "Detail national parks in Nepal, focusing on their unique ecosystems, wildlife, and conservation efforts.";
     exampleItemName = "Chitwan National Park";
     exampleTagline = "A UNESCO World Heritage site in the Terai plains, home to rhinos, tigers, and diverse wildlife.";
     exampleDuration = "2-3 days";
@@ -105,14 +105,14 @@ const generateTextPromptStructure = (category: RecommendationCategory): string =
     exampleRoute = "Fly to Bharatpur (20 mins) then 30-min drive to Sauraha, or 5-6 hour tourist bus from Kathmandu/Pokhara.";
   } else if (category === "hike") {
     itemFocus = "hiking trails or scenic walks";
-    categorySpecificInstruction = "Focus on shorter hiking trails, day walks, or scenic viewpoints accessible for day trips or short excursions. These should be distinct from major multi-day treks.";
-    exampleItemName = "Nagarkot Panoramic Trail";
-    exampleTagline = "Enjoy breathtaking Himalayan sunrise views and a refreshing walk through forests and villages near Kathmandu.";
-    exampleDuration = "Full-day (includes travel and 4-5 hours hiking)";
-    exampleAccommodations = `["Hotels and Guesthouses in Nagarkot (all budgets)", "Community Homestays in nearby villages"]`;
-    exampleNearby = `["Nagarkot View Tower", "Changunarayan Temple (can be part of a longer hike)"]`;
-    exampleFood = `["Local Nepali Thali sets in Nagarkot", "Tea and snacks at viewpoints along the trail"]`;
-    exampleRoute = "Drive from Kathmandu to Nagarkot (approx. 1.5-2 hours). Trail starts from various points in Nagarkot.";
+    categorySpecificInstruction = "Focus on popular day hiking trails and scenic walks located *within or immediately around the Kathmandu Valley*. These should be suitable for day trips. Examples include, but are not limited to, Champadevi, Shivapuri National Park trails (e.g., to Nagi Gompa or Bagdwar), Tarebhir, Sundarijal, Jamacho Gumba (Nagarjun Hill). Provide 3 to 4 distinct options.";
+    exampleItemName = "Champadevi Hill Hike";
+    exampleTagline = "A rewarding day hike near Kathmandu offering panoramic views of the valley and Himalayan ranges.";
+    exampleDuration = "4-6 hours (round trip)";
+    exampleAccommodations = `["Not applicable for day hike (start/end in Kathmandu)", "Tea shops along the trail for refreshments"]`;
+    exampleNearby = `["Dakshinkali Temple (nearby starting point for some routes)"]`;
+    exampleFood = `["Packed lunch and snacks recommended", "Local tea and noodles at trailside shops"]`;
+    exampleRoute = "Drive from Kathmandu to a trailhead like Pharping or Hattiban (approx. 1-1.5 hours). Trail starts from there.";
   }
 
 
@@ -277,3 +277,6 @@ const getRecommendationsFlow = ai.defineFlow(
     };
   }
 );
+
+
+    
