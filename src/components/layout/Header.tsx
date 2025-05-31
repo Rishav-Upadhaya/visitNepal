@@ -2,7 +2,7 @@
 "use client"; // Add this directive
 
 import Link from 'next/link';
-import { MapPinned, Route, Search, Menu, Mountain, Home } from 'lucide-react';
+import { MapPinned, Route, Search, Menu, Mountain, Home, Star } from 'lucide-react'; // Added Star
 import { Button } from '@/components/ui/button';
 import { Sheet, SheetContent, SheetTrigger, SheetClose } from '@/components/ui/sheet';
 import { Separator } from '@/components/ui/separator';
@@ -11,6 +11,7 @@ import { logUserEvent } from '@/lib/logger'; // Import the logger
 const navItems = [
   { href: '/', label: 'Home', icon: Home },
   { href: '/districts', label: 'Districts', icon: MapPinned },
+  { href: '/recommendations', label: 'Recommendations', icon: Star }, // New Item
   { href: '/plan-trip', label: 'Plan Your Trip', icon: Route },
 ];
 
