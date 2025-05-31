@@ -7,24 +7,28 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Loader2, Star, Info, ImageOff, ThumbsUp, Mountain, Waves, Building2, Trees, Sparkles } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
-import { getRecommendations, type GetRecommendationsOutput, type RecommendationCategory } from '@/ai/flows/get-recommendations-flow';
+import { getRecommendations, type GetRecommendationsOutput, type RecommendationCategory, type RecommendedItem } from '@/ai/flows/get-recommendations-flow';
 import { logUserEvent } from '@/lib/logger';
 
-const categories: { name: string; id: RecommendationCategory; icon: React.ElementType }[] = [
-  { name: "Treks", id: "treks", icon: Mountain },
-  { name: "Lakes", id: "lakes", icon: Waves },
-  { name: "Cities", id: "cities", icon: Building2 },
-  { name: "National Parks", id: "national-parks", icon: Trees },
-  { name: "Mountains", id: "mountains", icon: ThumbsUp }, // Changed icon to ThumbsUp for variety, can be Mountain icon as well
+const categories: { name: string; id: RecommendationCategory; icon: React.ElementType; description: string; }[] = [
+  { name: "Treks", id: "treks", icon: Mountain, description: "Discover legendary trails and breathtaking Himalayan vistas." },
+  { name: "Lakes", id: "lakes", icon: Waves, description: "Explore serene glacial lakes and vibrant lakeside towns." },
+  { name: "Cities", id: "cities", icon: Building2, description: "Immerse yourself in ancient cultures and bustling urban centers." },
+  { name: "National Parks", id: "national-parks", icon: Trees, description: "Encounter diverse wildlife in pristine natural reserves." },
+  { name: "Mountains", id: "mountains", icon: ThumbsUp, description: "Witness the majesty of the world's highest peaks and stunning panoramas." },
 ];
 
 export default function RecommendationsPage() {
   const [selectedCategory, setSelectedCategory] = useState<RecommendationCategory | null>(null);
-  const [recommendation, setRecommendation] = useState<GetRecommendationsOutput | null>(null);
+  const [recommendationData, setRecommendationData] = useState<GetRecommendationsOutput | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [imageError, setImageError] = useState(false);
   const { toast } = useToast();
+
+  // State to track image errors for individual items
+  type ImageErrorState = { [itemName: string]: boolean };
+  const [itemImageErrors, setItemImageErrors] = useState<ImageErrorState>({});
+
 
   useEffect(() => {
      logUserEvent({ eventName: 'PageView', eventData: { page: 'RecommendationsPage' } });
@@ -34,17 +38,14 @@ export default function RecommendationsPage() {
     setSelectedCategory(category);
     setIsLoading(true);
     setError(null);
-    setRecommendation(null);
-    setImageError(false);
+    setRecommendationData(null);
+    setItemImageErrors({}); // Reset image errors for the new category
     logUserEvent({ eventName: 'FetchRecommendationsAttempt', eventData: { category }});
 
     try {
       const result = await getRecommendations({ category });
-      setRecommendation(result);
-      if (!result.imageUrl || result.imageUrl.includes('placehold.co')) {
-        // Placeholder or no AI image
-      }
-      logUserEvent({ eventName: 'FetchRecommendationsSuccess', eventData: { category, hasImage: !!result.imageUrl && !result.imageUrl.includes('placehold.co') }});
+      setRecommendationData(result);
+      logUserEvent({ eventName: 'FetchRecommendationsSuccess', eventData: { category, itemCount: result.items.length }});
     } catch (e) {
       console.error("Failed to fetch recommendations:", e);
       const errorMessage = e instanceof Error ? e.message : "Could not load recommendations.";
@@ -60,7 +61,11 @@ export default function RecommendationsPage() {
     }
   }, [toast]);
 
-  const currentCategoryDisplayName = selectedCategory ? categories.find(c => c.id === selectedCategory)?.name : "Recommendation";
+  const handleItemImageError = (itemName: string) => {
+    setItemImageErrors(prev => ({ ...prev, [itemName]: true }));
+  };
+
+  const currentCategoryDetails = selectedCategory ? categories.find(c => c.id === selectedCategory) : null;
 
   return (
     <div className="container py-12 md:py-16">
@@ -95,19 +100,19 @@ export default function RecommendationsPage() {
         </div>
       </div>
 
-      <div id="category-content" className="mt-12 min-h-[300px] max-w-2xl mx-auto">
+      <div id="category-content" className="mt-12 min-h-[300px] w-full">
         {isLoading && (
-          <Card className="shadow-xl flex flex-col items-center justify-center min-h-[300px] text-center bg-muted/30 border">
+          <Card className="shadow-xl flex flex-col items-center justify-center min-h-[300px] text-center bg-muted/30 border max-w-lg mx-auto">
             <Loader2 className="h-12 w-12 text-primary animate-spin mx-auto mb-6" />
             <CardTitle className="text-2xl text-primary">Fetching Recommendations...</CardTitle>
             <CardDescription className="text-lg mt-2">
-              Our AI is working its magic for {currentCategoryDisplayName}!
+              Our AI is working its magic for {currentCategoryDetails?.name || 'your selection'}!
             </CardDescription>
           </Card>
         )}
 
         {!isLoading && error && (
-          <Card className="shadow-xl flex flex-col items-center justify-center min-h-[300px] text-center bg-destructive/10 border-destructive p-6">
+          <Card className="shadow-xl flex flex-col items-center justify-center min-h-[300px] text-center bg-destructive/10 border-destructive p-6 max-w-lg mx-auto">
             <Info className="h-12 w-12 text-destructive mx-auto mb-4" />
             <CardTitle className="text-2xl text-destructive">Something Went Wrong</CardTitle>
             <CardDescription className="text-lg mt-2 text-destructive/90">
@@ -116,43 +121,62 @@ export default function RecommendationsPage() {
           </Card>
         )}
 
-        {!isLoading && !error && recommendation && (
-          <Card className="shadow-xl overflow-hidden border">
-            <div className="relative aspect-video w-full">
-              {!imageError && recommendation.imageUrl ? (
-                <Image
-                  src={recommendation.imageUrl}
-                  alt={`AI generated image for ${recommendation.category} in Nepal`}
-                  fill
-                  className="object-cover"
-                  sizes="(max-width: 768px) 100vw, (max-width: 1024px) 80vw, 600px"
-                  onError={() => {
-                      console.warn(`Failed to load image: ${recommendation.imageUrl}`);
-                      setImageError(true);
-                  }}
-                  priority
-                  data-ai-hint={`${recommendation.category} nepal scenic`}
-                />
-              ) : (
-                <div className="flex flex-col items-center justify-center h-full text-muted-foreground bg-muted/50">
-                  <ImageOff className="h-16 w-16 mb-2" />
-                  <p>Image not available</p>
-                </div>
-              )}
-            </div>
-            <CardContent className="p-6">
-              <h2 className="text-2xl md:text-3xl font-bold text-primary mb-3 md:mb-4">
-                {categories.find(c => c.id === recommendation.category)?.name || currentCategoryDisplayName}
-              </h2>
-              <div className="prose prose-lg dark:prose-invert max-w-none text-foreground/90">
-                 <p className="whitespace-pre-line leading-relaxed">{recommendation.text}</p>
+        {!isLoading && !error && recommendationData && recommendationData.items.length > 0 && (
+          <>
+            {currentCategoryDetails && (
+              <div className="text-center mb-8 md:mb-12">
+                <h2 className="text-3xl font-bold text-primary mb-2">Recommendations for {currentCategoryDetails.name}</h2>
+                <p className="text-lg text-muted-foreground max-w-xl mx-auto">{currentCategoryDetails.description}</p>
               </div>
-            </CardContent>
-          </Card>
+            )}
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 md:gap-8">
+              {recommendationData.items.map((item: RecommendedItem) => (
+                <Card key={item.name} className="shadow-xl overflow-hidden border flex flex-col bg-card hover:shadow-2xl transition-shadow duration-300">
+                  <div className="relative aspect-video w-full">
+                    {!itemImageErrors[item.name] && item.imageUrl ? (
+                      <Image
+                        src={item.imageUrl}
+                        alt={`AI generated image for ${item.name}`}
+                        fill
+                        className="object-cover"
+                        sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
+                        onError={() => {
+                            console.warn(`Failed to load image: ${item.imageUrl} for item ${item.name}`);
+                            handleItemImageError(item.name);
+                        }}
+                        priority={recommendationData.items.indexOf(item) < 2} // Prioritize first few images
+                        data-ai-hint={item.imageAiHint || `${item.name} ${recommendationData.category}`}
+                      />
+                    ) : (
+                      <div className="flex flex-col items-center justify-center h-full text-muted-foreground bg-muted/50">
+                        <ImageOff className="h-16 w-16 mb-2" />
+                        <p>Image not available</p>
+                      </div>
+                    )}
+                  </div>
+                  <CardContent className="p-4 md:p-6 flex-grow flex flex-col">
+                    <h3 className="text-xl md:text-2xl font-bold text-primary mb-2">{item.name}</h3>
+                    <p className="text-sm md:text-base text-muted-foreground flex-grow whitespace-pre-line leading-relaxed">{item.description}</p>
+                  </CardContent>
+                </Card>
+              ))}
+            </div>
+          </>
+        )}
+        
+        {!isLoading && !error && recommendationData && recommendationData.items.length === 0 && (
+             <Card className="shadow-xl flex flex-col items-center justify-center min-h-[300px] text-center bg-muted/30 border p-6 max-w-lg mx-auto">
+                <Info className="h-12 w-12 text-primary mx-auto mb-4" />
+                <CardTitle className="text-2xl">No Specific Items Found</CardTitle>
+                <CardDescription className="text-lg mt-2">
+                  AI couldn't find specific recommendations for {currentCategoryDetails?.name || 'this category'} at the moment. Please try another category.
+                </CardDescription>
+            </Card>
         )}
 
-        {!isLoading && !error && !recommendation && (
-           <Card className="shadow-xl flex flex-col items-center justify-center min-h-[300px] text-center bg-muted/30 border p-6">
+
+        {!isLoading && !error && !recommendationData && (
+           <Card className="shadow-xl flex flex-col items-center justify-center min-h-[300px] text-center bg-muted/30 border p-6 max-w-lg mx-auto">
             <Star className="h-12 w-12 text-primary mx-auto mb-4" />
             <CardTitle className="text-2xl">Ready for Recommendations?</CardTitle>
             <CardDescription className="text-lg mt-2">
@@ -164,3 +188,5 @@ export default function RecommendationsPage() {
     </div>
   );
 }
+
+    
