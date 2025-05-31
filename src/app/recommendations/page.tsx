@@ -344,7 +344,7 @@ export default function RecommendationsPage() {
                       </div>
                       <CardContent className="p-4 pt-3 md:p-5 md:pt-4 flex-grow flex flex-col">
                         <p className="text-sm text-muted-foreground mb-3 line-clamp-3 h-12">{item.tagline}</p> 
-                        <Accordion type="single" collapsible className="w-full -mx-1">
+                        <Accordion type="single" collapsible className="w-full -mx-1 mb-4">
                             {renderDetailAccordionItem(Clock, "Suggested Duration", item.suggestedDuration, `cat-duration-${item.name.replace(/\s+/g, '-')}`)}
                             {renderDetailAccordionItem(Home, "Accommodations", item.accommodations, `cat-accomo-${item.name.replace(/\s+/g, '-')}`)}
                             {item.nearbyPlaces && item.nearbyPlaces.length > 0 && renderDetailAccordionItem(Compass, "Nearby Places", item.nearbyPlaces, `cat-nearby-${item.name.replace(/\s+/g, '-')}`)}
@@ -403,3 +403,4 @@ export default function RecommendationsPage() {
 
 
     
+
