@@ -34,7 +34,7 @@ const TextModelRecommendedItemSchema = z.object({
 });
 
 const TextModelResponseSchema = z.object({
-  recommendations: z.array(TextModelRecommendedItemSchema).min(2).max(3).describe("An array of 2 to 3 recommended places/items for the given category, each with detailed structured information.")
+  recommendations: z.array(TextModelRecommendedItemSchema).min(3).max(4).describe("An array of 3 to 4 recommended places/items for the given category, each with detailed structured information.")
 });
 
 // Schema for the final output of the FLOW (includes imageUrl for each item)
@@ -59,7 +59,7 @@ const generateTextPromptStructure = (category: RecommendationCategory): string =
   if (category === "national-parks") itemFocus = "national parks";
   if (category === "mountains") itemFocus = "mountains or famous viewpoints";
 
-  return `You are a Nepal travel expert. For the category "${category}", identify 2-3 distinct and popular ${itemFocus} in Nepal.
+  return `You are a Nepal travel expert. For the category "${category}", identify 3 to 4 distinct and popular ${itemFocus} in Nepal.
 For each of these ${itemFocus}, provide the following detailed information structured as a JSON object:
 1.  **name:** The specific name (e.g., "Everest Base Camp Trek", "Phewa Lake", "Kathmandu Durbar Square").
 2.  **tagline:** A short, catchy, and descriptive tagline (1-2 sentences) that captures its essence.
@@ -69,7 +69,7 @@ For each of these ${itemFocus}, provide the following detailed information struc
 6.  **food:** A list (array of strings) of 2-4 famous local dishes, food specialties, or types of cuisine prominent in or around the area (e.g., ["Dal Bhat", "Thukpa"], ["Newari Khaja Set", "Momos"]).
 7.  **routeFromKathmandu:** Brief information on how to reach this place from Kathmandu and the estimated travel duration/days from Kathmandu (e.g., "Fly to Lukla (30 mins) then trek for 8 days to reach the base camp", "Approx. 6-7 hour tourist bus ride from Kathmandu", "Located within Kathmandu valley, easily accessible by taxi (30 mins)").
 
-Your output MUST be a JSON object with a single key "recommendations". The value of "recommendations" must be an array of 2 or 3 objects, where each object contains all seven fields ('name', 'tagline', 'suggestedDuration', 'accommodations', 'nearbyPlaces', 'food', 'routeFromKathmandu') for one recommended item.
+Your output MUST be a JSON object with a single key "recommendations". The value of "recommendations" must be an array of 3 or 4 objects, where each object contains all seven fields ('name', 'tagline', 'suggestedDuration', 'accommodations', 'nearbyPlaces', 'food', 'routeFromKathmandu') for one recommended item.
 
 Example for one item in the "recommendations" array if the category was "lakes":
 {
@@ -134,14 +134,16 @@ const getRecommendationsFlow = ai.defineFlow(
         }));
       } else {
         console.warn(`Text generation for category '${category}' returned no valid items or malformed data. Using fallback items.`);
-        textItems = Array(2).fill(null).map((_, i) => ({
+        // Generate 3 fallback items if AI fails
+        textItems = Array(3).fill(null).map((_, i) => ({
             name: `Amazing ${category.slice(0,-1)} #${i + 1}`,
             ...FALLBACK_ITEM_DETAILS,
         }));
       }
     } catch (error) {
       console.error(`Error generating text recommendations for category ${category}:`, error);
-       textItems = Array(2).fill(null).map((_, i) => ({
+       // Generate 3 fallback items if AI fails
+       textItems = Array(3).fill(null).map((_, i) => ({
             name: `Beautiful ${category.slice(0,-1)} #${i + 1}`,
             ...FALLBACK_ITEM_DETAILS,
         }));
@@ -192,6 +194,7 @@ const getRecommendationsFlow = ai.defineFlow(
     
     if (finalItems.length === 0) { 
         console.error(`No items could be processed for category ${category}. This is an unexpected state.`);
+        // Return 1 fallback item if somehow finalItems array is empty
         return {
             category: category,
             items: [{
