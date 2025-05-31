@@ -7,7 +7,7 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
 import { Input } from '@/components/ui/input';
-import { Loader2, Star, Info, ImageOff, Mountain, Waves, Building2, Trees, Sparkles, MapPin, Clock, Home, Utensils, Route as RouteIcon, Compass, Search, ChevronLeft, Calendar, Map, Flag, MessageCircleQuestion } from 'lucide-react';
+import { Loader2, Star, Info, ImageOff, Mountain, Waves, Building2, Trees, Sparkles, MapPin, Clock, Home, Utensils, Route as RouteIcon, Compass, Search, ChevronLeft, Calendar, Map, Flag, MessageCircleQuestion, Sunrise } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { getRecommendations, type GetRecommendationsOutput, type RecommendationCategory, type RecommendedItem } from '@/ai/flows/get-recommendations-flow';
 import { getPlaceDescription, type GetPlaceDescriptionOutput } from '@/ai/flows/get-place-description-flow';
@@ -20,6 +20,7 @@ const categories: { name: string; id: RecommendationCategory; icon: React.Elemen
   { name: "Cities", id: "cities", icon: Building2, description: "Immerse yourself in ancient cultures and bustling urban centers." },
   { name: "National Parks", id: "national-parks", icon: Trees, description: "Encounter diverse wildlife in pristine natural reserves." },
   { name: "Hike", id: "hike", icon: Mountain, description: "Explore scenic day hiking trails and enjoyable walks with beautiful views within or around the Kathmandu Valley." },
+  { name: "Scenic Views", id: "scenic-views", icon: Sunrise, description: "Witness stunning panoramas from famous viewpoints across Nepal." },
 ];
 
 type ActiveView = 'categories' | 'searchResult';
@@ -251,7 +252,7 @@ export default function RecommendationsPage() {
           <>
             <div className="mb-10">
               <h2 className="text-2xl font-semibold text-center text-foreground mb-6">Or, Browse by Category:</h2>
-              <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4 max-w-4xl mx-auto">
+              <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-3 gap-4 max-w-4xl mx-auto"> {/* Adjusted lg:grid-cols-3 for 6 items */}
                 {categories.map((cat) => (
                   <Button
                     key={cat.id}

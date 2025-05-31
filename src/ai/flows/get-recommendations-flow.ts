@@ -13,7 +13,7 @@
 import {ai} from '@/ai/genkit';
 import {z} from 'genkit';
 
-const CATEGORIES = ["treks", "lakes", "cities", "national-parks", "hike"] as const;
+const CATEGORIES = ["treks", "lakes", "cities", "national-parks", "hike", "scenic-views"] as const;
 const CategoryEnum = z.enum(CATEGORIES);
 export type RecommendationCategory = z.infer<typeof CategoryEnum>;
 
@@ -113,6 +113,16 @@ const generateTextPromptStructure = (category: RecommendationCategory): string =
     exampleNearby = `["Dakshinkali Temple (nearby starting point for some routes)"]`;
     exampleFood = `["Packed lunch and snacks recommended", "Local tea and noodles at trailside shops"]`;
     exampleRoute = "Drive from Kathmandu to a trailhead like Pharping or Hattiban (approx. 1-1.5 hours). Trail starts from there.";
+  } else if (category === "scenic-views") {
+    itemFocus = "scenic viewpoints or places renowned for breathtaking views";
+    categorySpecificInstruction = "Highlight places in Nepal famous for their spectacular natural beauty, especially mountain panoramas, unique landscapes, or stunning sunrise/sunset views. Examples include Nagarkot, Poon Hill, Sarangkot, Kala Patthar, or viewpoints in Mustang/Manang.";
+    exampleItemName = "Nagarkot View Tower";
+    exampleTagline = "Offers expansive Himalayan sunrise and sunset views, including Mount Everest on clear days.";
+    exampleDuration = "Overnight stay or early morning trip (1-2 days including travel from Kathmandu)";
+    exampleAccommodations = `["Hotels with mountain views", "Resorts", "Guesthouses"]`;
+    exampleNearby = `["Changu Narayan Temple (en route or nearby)", "Bhaktapur Durbar Square (can be combined)"]`;
+    exampleFood = `["Local Nepali meals", "Continental options at hotels"]`;
+    exampleRoute = "Approx. 1.5-2 hour drive east from Kathmandu.";
   }
 
 
