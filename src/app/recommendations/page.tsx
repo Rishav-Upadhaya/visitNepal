@@ -327,8 +327,8 @@ export default function RecommendationsPage() {
                   <Button
                     key={cat.id}
                     variant={selectedCategory === cat.id ? "default" : "outline"}
-                    size="lg"
-                    className={`text-base h-14 ${selectedCategory === cat.id ? 'bg-accent text-accent-foreground hover:bg-accent/90' : 'border-primary text-primary hover:bg-primary/10'}`}
+                    size="default"
+                    className={`text-sm ${selectedCategory === cat.id ? 'bg-accent text-accent-foreground hover:bg-accent/90' : 'border-primary text-primary hover:bg-primary/10'}`}
                     onClick={() => fetchRecommendations(cat.id)}
                     disabled={isLoadingCategories && selectedCategory === cat.id}
                   >
