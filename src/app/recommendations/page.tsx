@@ -159,7 +159,7 @@ export default function RecommendationsPage() {
       </div>
 
       {/* General Search Bar */}
-      <Card className="mb-10 shadow-lg border border-primary/10">
+      <Card className="mb-10 bg-background border-none shadow-none">
         <CardContent className="p-4 md:p-6">
           <div className="flex flex-col sm:flex-row items-center gap-3 md:gap-4">
             <Input
@@ -237,7 +237,7 @@ export default function RecommendationsPage() {
                   <p className="text-base text-foreground mb-4 whitespace-pre-line">{searchResult.description}</p>
                   <Accordion type="single" collapsible className="w-full -mx-1">
                     {renderDetailAccordionItem(Map, "Key Attractions / Activities", searchResult.attractions, `search-attr-${searchResult.name}`)}
-                    {renderDetailAccordionItem(RouteIcon, "How to Reach", searchResult.howToReach, `search-route-${searchResult.name}`)}
+                    {renderDetailAccordionItem(RouteIcon, "How to Reach", searchResult.howToReach, `search-how-${searchResult.name}`)}
                     {renderDetailAccordionItem(Calendar, "Best Time to Visit", searchResult.bestTimeToVisit, `search-time-${searchResult.name}`)}
                     {renderDetailAccordionItem(MessageCircleQuestion, "Local Tips", searchResult.localTips, `search-tips-${searchResult.name}`)}
                   </Accordion>
@@ -377,4 +377,6 @@ export default function RecommendationsPage() {
     </div>
   );
 }
+    
+
     
