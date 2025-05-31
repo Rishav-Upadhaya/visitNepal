@@ -49,11 +49,11 @@ const PARTIAL_FALLBACK_DETAILS: Omit<GetPlaceDescriptionOutput, 'imageUrl' | 'im
     localTips: ["Always respect local culture and traditions.", "Stay hydrated, especially at higher altitudes.", "Be prepared for varying weather conditions."]
 };
 
-// Fallback used when AI provides no useful top-level info, implying place not found in Nepal or no details available.
+// Fallback used when AI provides no useful top-level info, or if an error occurs during processing.
 const NOT_FOUND_IN_NEPAL_FALLBACK_DETAILS: Omit<GetPlaceDescriptionOutput, 'imageUrl' | 'imageAiHint' | 'name'> = {
     tagline: "Information not available for this place in Nepal.",
     description: NOT_FOUND_IN_NEPAL_DESCRIPTION_SENTINEL,
-    attractions: ["No specific attractions found for this place in Nepal."],
+    attractions: ["Information unavailable as the place was not identified in Nepal."],
     howToReach: "Route information unavailable as the place was not identified in Nepal.",
     bestTimeToVisit: "Visit time information unavailable.",
     localTips: ["Ensure the place is located within Nepal and try searching again with correct spelling."]
@@ -77,36 +77,58 @@ const getPlaceDescriptionFlow = ai.defineFlow(
 
     try {
       // Step 1: Get structured text details from the text model
-      const textPrompt = `You are an expert Nepal travel guide and content creator. For the specific place named "${placeName}" located **in Nepal**, provide detailed, engaging, and accurate information for a travel website. If the place name is ambiguous or could exist outside Nepal, prioritize results and context specific to **Nepal**. If the place is a trek, focus on the trek itself (e.g., "Everest Base Camp Trek"). If it's a specific temple, focus on that temple.
+      const textPrompt = `You are an expert Nepal travel guide and content creator. Your task is to provide information about a specific *place*.
 
-      Generate the following as a JSON object. Ensure all fields are populated with relevant and specific information pertaining to its location and context **within Nepal**:
-      1.  **name:** The official or commonly known name, ideally matching "${placeName}".
-      2.  **tagline:** A very short, catchy, and descriptive tagline for "${placeName}" (maximum 1 sentence, e.g., "The spiritual heart of Kathmandu, a UNESCO World Heritage site.").
-      3.  **description:** A detailed and engaging description of "${placeName}", covering its significance, what makes it special for travelers, and what visitors can expect. Aim for 3-5 well-crafted sentences. All information must be specific to its context **within Nepal**.
-      4.  **attractions:** A list (JSON array of strings) of 2 to 4 key attractions, specific points of interest, or main activities directly related to this place **in Nepal**. (e.g., for a lake: "Boating on the serene waters", "Hiking to a nearby viewpoint for panoramic vistas"; for a trek: "Crossing the Thorong La Pass", "Reaching Annapurna Base Camp"). Be specific and actionable.
-      5.  **howToReach:** Brief, practical information on how to reach "${placeName}" **within Nepal**. Include common modes of transport and general accessibility, ideally from a major hub like Kathmandu or Pokhara. (e.g., "Fly from Kathmandu to Lukla (30 mins), then begin the 8-day trek.", "Approx. 6-7 hour tourist bus ride from Kathmandu to Pokhara, then a 30-minute taxi to Phewa Lake's north shore.", "Located within Bhaktapur Durbar Square, easily accessible by local bus or taxi from Kathmandu (approx. 1 hour).").
-      6.  **bestTimeToVisit:** The best time of year or specific seasons to visit "${placeName}" **in Nepal**, considering weather, views, and local conditions. (e.g., "Spring (March to May) and Autumn (September to November) offer clear skies and pleasant trekking weather.", "October to March for comfortable temperatures in the Terai region.").
-      7.  **localTips:** A list (JSON array of strings) of 2 to 3 practical and specific local tips for visitors relevant to this place **in Nepal** (e.g., "Carry enough water and snacks for the day hike.", "Respect local customs by dressing modestly when visiting monasteries.", "Entry permits (TIMS card and National Park permit) are required for this trek and can be obtained in Kathmandu or Pokhara.").
+User-provided place name: "${placeName}"
 
-      Your output MUST be a JSON object strictly matching this structure. Do not add any extra explanations outside the JSON.
-      Example for input "Rara Lake" (which is in Nepal):
-      {
-        "name": "Rara Lake",
-        "tagline": "Nepal's largest and deepest freshwater lake, a stunning turquoise jewel nestled in the remote Himalayas.",
-        "description": "Rara Lake, located in the Mugu district of Nepal, is a breathtaking high-altitude lake renowned for its crystal-clear waters and serene surroundings. It's part of Rara National Park, offering a pristine natural environment with diverse flora and fauna. The journey to Rara itself is an adventure, rewarding visitors with unparalleled tranquility and stunning alpine scenery.",
-        "attractions": ["Boating on the lake's placid waters", "Horse riding around the lake perimeter", "Hiking to Murma Top for panoramic Himalayan views", "Exceptional bird watching opportunities"],
-        "howToReach": "Fly from Nepalgunj to Talcha Airport (approx. 45 mins), then a 2-3 hour walk/hike to the lake. Alternatively, a multi-day trek from Jumla is possible for adventurers.",
-        "bestTimeToVisit": "Spring (April-May) and Autumn (September-October) for clear skies, blooming wildflowers (spring), and pleasant temperatures.",
-        "localTips": ["Acclimatize properly due to the high altitude (around 3000m).", "Carry basic medical supplies as facilities are limited.", "Camping facilities and basic guesthouses are available; book in advance during peak season."]
-      }
-      `;
+Follow these steps:
+1.  **Interpret Input**: If "${placeName}" seems like a common misspelling of a known Nepali place, interpret it as the correct Nepali place name (e.g., "Pokharaa" as "Pokhara", "Pashupatinat" as "Pashupatinath Temple").
+2.  **Contextualize in Nepal**: Determine if the (potentially corrected) place name refers to a location **in Nepal**.
+3.  **Information Retrieval (If in Nepal)**: If the place is in Nepal, provide detailed, engaging, and accurate information for a travel website. All information (description, attractions, howToReach, localTips, etc.) MUST be specific to its location and context **within Nepal**.
+    *   If the place is a trek (e.g., "Everest Base Camp Trek"), focus on the trek itself.
+    *   If it's a specific temple (e.g., "Manakamana Temple"), focus on that temple.
+4.  **Error Handling / Place Not Found in Nepal**:
+    If the provided "${placeName}" (even after attempting interpretation) is definitively not a place in Nepal, or is not a recognizable place name at all (e.g., gibberish, "Eiffel Tower", "what is the weather"), or if you cannot find any information about it in Nepal:
+    *   Set the "name" field in your JSON output to the original "${placeName}" input.
+    *   Set the "tagline" field to "Information not available for this place in Nepal."
+    *   Set the "description" field *exactly* to: "${NOT_FOUND_IN_NEPAL_DESCRIPTION_SENTINEL}"
+    *   Set "attractions" to ["Information unavailable as the place was not identified in Nepal."].
+    *   Set "howToReach" to "Route information unavailable as the place was not identified in Nepal."
+    *   Set "bestTimeToVisit" to "Visit time information unavailable.".
+    *   Set "localTips" to ["Ensure the place is located within Nepal and try searching again with correct spelling."].
+    You MUST still return a JSON object matching the schema, but with these "not found" values.
+
+**Required JSON Output Structure (Strictly Adhere):**
+Generate the following as a JSON object. Ensure all fields are populated according to the instructions above.
+
+{
+  "name": "The official or commonly known name, matching interpreted place name if applicable, or original if not found.",
+  "tagline": "A very short, catchy, descriptive tagline (1 sentence max if found), or 'Information not available...' if not.",
+  "description": "Detailed description (3-5 sentences if found in Nepal), or '${NOT_FOUND_IN_NEPAL_DESCRIPTION_SENTINEL}' if not.",
+  "attractions": ["List of 1-5 key attractions/activities in Nepal if found", "Or 'Information unavailable...' if not."],
+  "howToReach": "How to reach information within Nepal if found, or 'Route information unavailable...' if not.",
+  "bestTimeToVisit": "Best time to visit in Nepal if found, or 'Visit time information unavailable...' if not.",
+  "localTips": ["List of 1-3 local tips in Nepal if found", "Or 'Ensure the place is located...' if not."]
+}
+
+Example for input "Rara Lake" (which is in Nepal):
+{
+  "name": "Rara Lake",
+  "tagline": "Nepal's largest and deepest freshwater lake, a stunning turquoise jewel nestled in the remote Himalayas.",
+  "description": "Rara Lake, located in the Mugu district of Nepal, is a breathtaking high-altitude lake renowned for its crystal-clear waters and serene surroundings. It's part of Rara National Park, offering a pristine natural environment with diverse flora and fauna. The journey to Rara itself is an adventure, rewarding visitors with unparalleled tranquility and stunning alpine scenery.",
+  "attractions": ["Boating on the lake's placid waters", "Horse riding around the lake perimeter", "Hiking to Murma Top for panoramic Himalayan views", "Exceptional bird watching opportunities"],
+  "howToReach": "Fly from Nepalgunj to Talcha Airport (approx. 45 mins), then a 2-3 hour walk/hike to the lake. Alternatively, a multi-day trek from Jumla is possible for adventurers.",
+  "bestTimeToVisit": "Spring (April-May) and Autumn (September-October) for clear skies, blooming wildflowers (spring), and pleasant temperatures.",
+  "localTips": ["Acclimatize properly due to the high altitude (around 3000m).", "Carry basic medical supplies as facilities are limited.", "Camping facilities and basic guesthouses are available; book in advance during peak season."]
+}
+`;
 
       const textResponse = await ai.generate({
         prompt: textPrompt,
         output: { schema: PlaceDetailsTextModelOutputSchema },
         config: {
             temperature: 0.3,
-            safetySettings: [ // Added safety settings
+            safetySettings: [ 
                 { category: 'HARM_CATEGORY_HATE_SPEECH', threshold: 'BLOCK_NONE' },
                 { category: 'HARM_CATEGORY_DANGEROUS_CONTENT', threshold: 'BLOCK_NONE' },
                 { category: 'HARM_CATEGORY_HARASSMENT', threshold: 'BLOCK_NONE' },
@@ -116,15 +138,29 @@ const getPlaceDescriptionFlow = ai.defineFlow(
       });
 
       if (textResponse.output && textResponse.output.name) {
-        textDetails = {
-            name: textResponse.output.name,
-            tagline: textResponse.output.tagline || PARTIAL_FALLBACK_DETAILS.tagline,
-            description: textResponse.output.description || PARTIAL_FALLBACK_DETAILS.description,
-            attractions: textResponse.output.attractions && textResponse.output.attractions.length > 0 ? textResponse.output.attractions : PARTIAL_FALLBACK_DETAILS.attractions,
-            howToReach: textResponse.output.howToReach || PARTIAL_FALLBACK_DETAILS.howToReach,
-            bestTimeToVisit: textResponse.output.bestTimeToVisit || PARTIAL_FALLBACK_DETAILS.bestTimeToVisit,
-            localTips: textResponse.output.localTips && textResponse.output.localTips.length > 0 ? textResponse.output.localTips : PARTIAL_FALLBACK_DETAILS.localTips,
-        };
+        // If the AI correctly uses the sentinel for description, pass it through.
+        // Otherwise, use partial fallbacks for any missing individual fields.
+        if (textResponse.output.description === NOT_FOUND_IN_NEPAL_DESCRIPTION_SENTINEL) {
+            textDetails = {
+                 name: textResponse.output.name || placeName, // Use AI's name or original
+                 tagline: textResponse.output.tagline || NOT_FOUND_IN_NEPAL_FALLBACK_DETAILS.tagline,
+                 description: NOT_FOUND_IN_NEPAL_DESCRIPTION_SENTINEL,
+                 attractions: textResponse.output.attractions && textResponse.output.attractions.length > 0 ? textResponse.output.attractions : NOT_FOUND_IN_NEPAL_FALLBACK_DETAILS.attractions,
+                 howToReach: textResponse.output.howToReach || NOT_FOUND_IN_NEPAL_FALLBACK_DETAILS.howToReach,
+                 bestTimeToVisit: textResponse.output.bestTimeToVisit || NOT_FOUND_IN_NEPAL_FALLBACK_DETAILS.bestTimeToVisit,
+                 localTips: textResponse.output.localTips && textResponse.output.localTips.length > 0 ? textResponse.output.localTips : NOT_FOUND_IN_NEPAL_FALLBACK_DETAILS.localTips,
+            };
+        } else {
+            textDetails = {
+                name: textResponse.output.name,
+                tagline: textResponse.output.tagline || PARTIAL_FALLBACK_DETAILS.tagline,
+                description: textResponse.output.description || PARTIAL_FALLBACK_DETAILS.description,
+                attractions: textResponse.output.attractions && textResponse.output.attractions.length > 0 ? textResponse.output.attractions : PARTIAL_FALLBACK_DETAILS.attractions,
+                howToReach: textResponse.output.howToReach || PARTIAL_FALLBACK_DETAILS.howToReach,
+                bestTimeToVisit: textResponse.output.bestTimeToVisit || PARTIAL_FALLBACK_DETAILS.bestTimeToVisit,
+                localTips: textResponse.output.localTips && textResponse.output.localTips.length > 0 ? textResponse.output.localTips : PARTIAL_FALLBACK_DETAILS.localTips,
+            };
+        }
       } else {
         console.warn(`Text generation for place '${placeName}' returned no valid output or missing name. Using 'not found in Nepal' fallback.`);
         textDetails = { name: placeName, ...NOT_FOUND_IN_NEPAL_FALLBACK_DETAILS };
@@ -136,32 +172,37 @@ const getPlaceDescriptionFlow = ai.defineFlow(
 
     // Step 2: Generate image for the place
     let imageUrl = FALLBACK_IMAGE_URL_PLACE;
-    const finalPlaceNameForImage = textDetails.name;
+    const finalPlaceNameForImage = textDetails.name; // Use the name determined by the text generation logic
 
     // Generate a concise 1-2 word hint for Unsplash/placeholder
     const placeNameWords = finalPlaceNameForImage.split(' ');
-    const imageAiHint = placeNameWords.slice(0, 2).join(' ');
+    const imageAiHint = placeNameWords.slice(0, 2).join(' ').toLowerCase();
 
 
     try {
-      const imagePrompt = `Generate a high-resolution, captivating travel photograph showcasing "${finalPlaceNameForImage}" **in Nepal**. The image should be scenic, inspiring, and suitable for a travel website. Focus on its most iconic aspect or viewpoint. Avoid any text overlays or people if not essential to the scene. Aim for a photorealistic style.`;
-      const imageGenResponse = await ai.generate({
-        model: 'googleai/gemini-2.0-flash-exp',
-        prompt: imagePrompt,
-        config: {
-          responseModalities: ['TEXT', 'IMAGE'],
-           safetySettings: [
-            { category: 'HARM_CATEGORY_HATE_SPEECH', threshold: 'BLOCK_NONE' },
-            { category: 'HARM_CATEGORY_DANGEROUS_CONTENT', threshold: 'BLOCK_NONE' },
-            { category: 'HARM_CATEGORY_HARASSMENT', threshold: 'BLOCK_NONE' },
-            { category: 'HARM_CATEGORY_SEXUALLY_EXPLICIT', threshold: 'BLOCK_NONE' },
-          ],
-        },
-      });
-      if (imageGenResponse.media?.url) {
-        imageUrl = imageGenResponse.media.url;
+      // Only generate image if the place was found in Nepal
+      if (textDetails.description !== NOT_FOUND_IN_NEPAL_DESCRIPTION_SENTINEL) {
+        const imagePrompt = `Generate a high-resolution, captivating travel photograph showcasing "${finalPlaceNameForImage}" **in Nepal**. The image should be scenic, inspiring, and suitable for a travel website. Focus on its most iconic aspect or viewpoint. Avoid any text overlays or people if not essential to the scene. Aim for a photorealistic style.`;
+        const imageGenResponse = await ai.generate({
+          model: 'googleai/gemini-2.0-flash-exp',
+          prompt: imagePrompt,
+          config: {
+            responseModalities: ['TEXT', 'IMAGE'],
+             safetySettings: [
+              { category: 'HARM_CATEGORY_HATE_SPEECH', threshold: 'BLOCK_NONE' },
+              { category: 'HARM_CATEGORY_DANGEROUS_CONTENT', threshold: 'BLOCK_NONE' },
+              { category: 'HARM_CATEGORY_HARASSMENT', threshold: 'BLOCK_NONE' },
+              { category: 'HARM_CATEGORY_SEXUALLY_EXPLICIT', threshold: 'BLOCK_NONE' },
+            ],
+          },
+        });
+        if (imageGenResponse.media?.url) {
+          imageUrl = imageGenResponse.media.url;
+        } else {
+           console.warn(`Image generation for place '${finalPlaceNameForImage}' returned no media URL. Using fallback.`);
+        }
       } else {
-         console.warn(`Image generation for place '${finalPlaceNameForImage}' returned no media URL. Using fallback.`);
+          console.log(`Skipping image generation for '${finalPlaceNameForImage}' as it was not found in Nepal.`);
       }
     } catch (imgError) {
       console.error(`Error generating image for place '${finalPlaceNameForImage}':`, imgError);
