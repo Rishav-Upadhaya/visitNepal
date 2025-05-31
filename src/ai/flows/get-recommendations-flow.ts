@@ -187,7 +187,15 @@ const getRecommendationsFlow = ai.defineFlow(
       const textResponse = await ai.generate({
         prompt: textPrompt,
         output: { schema: TextModelResponseSchema },
-        config: { temperature: 0.3 }
+        config: { 
+            temperature: 0.3,
+            safetySettings: [ // Added safety settings
+                { category: 'HARM_CATEGORY_HATE_SPEECH', threshold: 'BLOCK_NONE' },
+                { category: 'HARM_CATEGORY_DANGEROUS_CONTENT', threshold: 'BLOCK_NONE' },
+                { category: 'HARM_CATEGORY_HARASSMENT', threshold: 'BLOCK_NONE' },
+                { category: 'HARM_CATEGORY_SEXUALLY_EXPLICIT', threshold: 'BLOCK_NONE' },
+            ],
+        }
       });
 
       if (textResponse.output?.recommendations && textResponse.output.recommendations.length > 0) {
