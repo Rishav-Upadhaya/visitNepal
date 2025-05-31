@@ -6,6 +6,7 @@
  * - getPlaceDescription - Fetches details for a given place.
  * - GetPlaceDescriptionInput - Input type for the getPlaceDescription function.
  * - GetPlaceDescriptionOutput - Output type for the getPlaceDescription function.
+ * - NOT_FOUND_IN_NEPAL_DESCRIPTION_SENTINEL - A sentinel string to indicate AI couldn't find the place in Nepal.
  */
 
 import {ai} from '@/ai/genkit';
@@ -37,7 +38,9 @@ export type GetPlaceDescriptionOutput = z.infer<typeof GetPlaceDescriptionOutput
 
 
 const FALLBACK_IMAGE_URL_PLACE = "https://placehold.co/800x500.png?text=Nepal+Attraction";
-const FALLBACK_PLACE_DETAILS: Omit<GetPlaceDescriptionOutput, 'imageUrl' | 'imageAiHint' | 'name'> = {
+
+// Fallback used when AI returns some valid structure but specific fields might be missing.
+const PARTIAL_FALLBACK_DETAILS: Omit<GetPlaceDescriptionOutput, 'imageUrl' | 'imageAiHint' | 'name'> = {
     tagline: "An intriguing destination in Nepal offering unique experiences and sights.",
     description: "Discover the unique beauty, culture, and significance of this fascinating place in Nepal. More detailed information is being curated by our AI.",
     attractions: ["Key points of interest and activities will be listed here soon."],
@@ -45,6 +48,20 @@ const FALLBACK_PLACE_DETAILS: Omit<GetPlaceDescriptionOutput, 'imageUrl' | 'imag
     bestTimeToVisit: "Nepal offers diverse climates; the best time to visit varies by region and altitude. Generally, spring and autumn are popular.",
     localTips: ["Always respect local culture and traditions.", "Stay hydrated, especially at higher altitudes.", "Be prepared for varying weather conditions."]
 };
+
+// Sentinel description to indicate AI could not find specific details for the place in Nepal.
+export const NOT_FOUND_IN_NEPAL_DESCRIPTION_SENTINEL = "Our AI could not find specific details for this place within Nepal. Please try a different search or check the spelling.";
+
+// Fallback used when AI provides no useful top-level info, implying place not found in Nepal or no details available.
+const NOT_FOUND_IN_NEPAL_FALLBACK_DETAILS: Omit<GetPlaceDescriptionOutput, 'imageUrl' | 'imageAiHint' | 'name'> = {
+    tagline: "Information not available for this place in Nepal.",
+    description: NOT_FOUND_IN_NEPAL_DESCRIPTION_SENTINEL,
+    attractions: ["No specific attractions found for this place in Nepal."],
+    howToReach: "Route information unavailable as the place was not identified in Nepal.",
+    bestTimeToVisit: "Visit time information unavailable.",
+    localTips: ["Ensure the place is located within Nepal and try searching again with correct spelling."]
+};
+
 
 export async function getPlaceDescription(
   input: GetPlaceDescriptionInput
@@ -90,32 +107,30 @@ const getPlaceDescriptionFlow = ai.defineFlow(
       const textResponse = await ai.generate({
         prompt: textPrompt,
         output: { schema: PlaceDetailsTextModelOutputSchema },
-        config: { temperature: 0.3 } // Reduced temperature for more factual and constrained output
+        config: { temperature: 0.3 } 
       });
 
-      if (textResponse.output && textResponse.output.name) { // Check if AI returned a name
+      if (textResponse.output && textResponse.output.name) { 
         textDetails = {
-            ...FALLBACK_PLACE_DETAILS, // Start with fallback
-            name: textResponse.output.name, // Prioritize AI name
-            tagline: textResponse.output.tagline || FALLBACK_PLACE_DETAILS.tagline,
-            description: textResponse.output.description || FALLBACK_PLACE_DETAILS.description,
-            attractions: textResponse.output.attractions && textResponse.output.attractions.length > 0 ? textResponse.output.attractions : FALLBACK_PLACE_DETAILS.attractions,
-            howToReach: textResponse.output.howToReach || FALLBACK_PLACE_DETAILS.howToReach,
-            bestTimeToVisit: textResponse.output.bestTimeToVisit || FALLBACK_PLACE_DETAILS.bestTimeToVisit,
-            localTips: textResponse.output.localTips && textResponse.output.localTips.length > 0 ? textResponse.output.localTips : FALLBACK_PLACE_DETAILS.localTips,
+            name: textResponse.output.name, 
+            tagline: textResponse.output.tagline || PARTIAL_FALLBACK_DETAILS.tagline,
+            description: textResponse.output.description || PARTIAL_FALLBACK_DETAILS.description,
+            attractions: textResponse.output.attractions && textResponse.output.attractions.length > 0 ? textResponse.output.attractions : PARTIAL_FALLBACK_DETAILS.attractions,
+            howToReach: textResponse.output.howToReach || PARTIAL_FALLBACK_DETAILS.howToReach,
+            bestTimeToVisit: textResponse.output.bestTimeToVisit || PARTIAL_FALLBACK_DETAILS.bestTimeToVisit,
+            localTips: textResponse.output.localTips && textResponse.output.localTips.length > 0 ? textResponse.output.localTips : PARTIAL_FALLBACK_DETAILS.localTips,
         };
       } else {
-        console.warn(`Text generation for place '${placeName}' returned no valid output or missing name. Using fallback details with input placeName.`);
-        textDetails = { name: placeName, ...FALLBACK_PLACE_DETAILS };
+        console.warn(`Text generation for place '${placeName}' returned no valid output or missing name. Using 'not found in Nepal' fallback.`);
+        textDetails = { name: placeName, ...NOT_FOUND_IN_NEPAL_FALLBACK_DETAILS };
       }
     } catch (error) {
       console.error(`Error generating text details for place ${placeName}:`, error);
-      textDetails = { name: placeName, ...FALLBACK_PLACE_DETAILS }; // Use input placeName for fallback if AI fails
+      textDetails = { name: placeName, ...NOT_FOUND_IN_NEPAL_FALLBACK_DETAILS }; 
     }
 
     // Step 2: Generate image for the place
     let imageUrl = FALLBACK_IMAGE_URL_PLACE;
-    // Use the name from textDetails (which is either AI-generated or the input placeName) for consistency
     const finalPlaceNameForImage = textDetails.name;
     const imageAiHint = `${finalPlaceNameForImage} Nepal travel photo`;
     try {
@@ -143,7 +158,7 @@ const getPlaceDescriptionFlow = ai.defineFlow(
     }
 
     return {
-      ...textDetails, // name is already in textDetails
+      ...textDetails, 
       imageUrl,
       imageAiHint,
     };

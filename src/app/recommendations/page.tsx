@@ -7,10 +7,10 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
 import { Input } from '@/components/ui/input';
-import { Loader2, Star, Info, ImageOff, Mountain, Waves, Building2, Trees, Sparkles, MapPin, Clock, Home, Utensils, Route as RouteIcon, Compass, Search, ChevronLeft, Calendar, Map, Flag, MessageCircleQuestion, Sunrise } from 'lucide-react';
+import { Loader2, Star, Info, ImageOff, Mountain, Waves, Building2, Trees, Sparkles, MapPin, Clock, Home, Utensils, Route as RouteIcon, Compass, Search, ChevronLeft, Calendar, Map, MessageCircleQuestion, Sunrise } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { getRecommendations, type GetRecommendationsOutput, type RecommendationCategory, type RecommendedItem } from '@/ai/flows/get-recommendations-flow';
-import { getPlaceDescription, type GetPlaceDescriptionOutput } from '@/ai/flows/get-place-description-flow';
+import { getPlaceDescription, type GetPlaceDescriptionOutput, NOT_FOUND_IN_NEPAL_DESCRIPTION_SENTINEL } from '@/ai/flows/get-place-description-flow';
 import { logUserEvent } from '@/lib/logger';
 import { cn } from '@/lib/utils';
 
@@ -55,7 +55,7 @@ export default function RecommendationsPage() {
     setCategoryError(null);
     setRecommendationData(null);
     setItemImageErrors({});
-    setActiveView('categories'); // Ensure view is set to categories
+    setActiveView('categories'); 
     logUserEvent({ eventName: 'FetchRecommendationsAttempt', eventData: { category }});
 
     try {
@@ -111,8 +111,8 @@ export default function RecommendationsPage() {
   }, [searchQuery, toast]);
 
   const handleItemCardSearch = (placeName: string) => {
-    setSearchQuery(placeName); // Set the search query from the item card
-    handleGeneralSearch(placeName); // Trigger search for this specific place
+    setSearchQuery(placeName); 
+    handleGeneralSearch(placeName); 
   };
 
   const handleItemImageError = (itemName: string) => {
@@ -149,6 +149,8 @@ export default function RecommendationsPage() {
     );
   };
 
+  const isSearchResultNotFoundInNepal = searchResult?.description === NOT_FOUND_IN_NEPAL_DESCRIPTION_SENTINEL;
+
   return (
     <div className="container py-12 md:py-16" ref={pageTopRef}>
       <div className="text-center mb-10">
@@ -159,7 +161,7 @@ export default function RecommendationsPage() {
         </p>
       </div>
 
-      {/* General Search Bar */}
+      
       <Card className="mb-10 bg-background border-none shadow-none">
         <CardContent className="p-4 md:p-6">
           <div className="flex flex-col sm:flex-row items-center gap-3 md:gap-4">
@@ -184,7 +186,7 @@ export default function RecommendationsPage() {
         </CardContent>
       </Card>
       
-      {/* Content Area: Categories or Search Result */}
+      
       <div id="content-display-area" className="mt-8 min-h-[300px] w-full">
         {activeView === 'searchResult' && (
           <>
@@ -210,40 +212,50 @@ export default function RecommendationsPage() {
               </Card>
             )}
             {!isSearchingPlace && !searchError && searchResult && (
-              <Card className="shadow-xl overflow-hidden border flex flex-col bg-card hover:shadow-2xl transition-shadow duration-300 max-w-2xl mx-auto">
-                <div className="relative aspect-[16/10] w-full">
-                   {!searchImageError && searchResult.imageUrl ? (
-                    <Image
-                      src={searchResult.imageUrl}
-                      alt={`AI generated image for ${searchResult.name}`}
-                      fill
-                      className="object-cover"
-                      sizes="(max-width: 768px) 100vw, (max-width: 1024px) 66vw, 50vw"
-                      onError={handleSearchImageError}
-                      priority
-                      data-ai-hint={searchResult.imageAiHint || `${searchResult.name} Nepal`}
-                    />
-                  ) : (
-                    <div className="flex flex-col items-center justify-center h-full text-muted-foreground bg-muted/50">
-                      <ImageOff className="h-16 w-16 mb-2" />
-                      <p>Image not available</p>
+              isSearchResultNotFoundInNepal ? (
+                <Card className="shadow-xl flex flex-col items-center justify-center min-h-[300px] text-center bg-amber-50 dark:bg-amber-900/20 border-amber-400 dark:border-amber-600 p-6 max-w-2xl mx-auto">
+                  <Info className="h-12 w-12 text-amber-500 dark:text-amber-400 mx-auto mb-4" />
+                  <CardTitle className="text-2xl text-amber-700 dark:text-amber-300">Place Information Not Available</CardTitle>
+                  <CardDescription className="text-lg mt-2 text-amber-600 dark:text-amber-500">
+                     Our AI could not find specific details for "{searchResult.name}" within Nepal. Please ensure the name is correct and the place is located in Nepal, or try a different search.
+                  </CardDescription>
+                </Card>
+              ) : (
+                <Card className="shadow-xl overflow-hidden border flex flex-col bg-card hover:shadow-2xl transition-shadow duration-300 max-w-2xl mx-auto">
+                  <div className="relative aspect-[16/10] w-full">
+                    {!searchImageError && searchResult.imageUrl ? (
+                      <Image
+                        src={searchResult.imageUrl}
+                        alt={`AI generated image for ${searchResult.name}`}
+                        fill
+                        className="object-cover"
+                        sizes="(max-width: 768px) 100vw, (max-width: 1024px) 66vw, 50vw"
+                        onError={handleSearchImageError}
+                        priority
+                        data-ai-hint={searchResult.imageAiHint || `${searchResult.name} Nepal`}
+                      />
+                    ) : (
+                      <div className="flex flex-col items-center justify-center h-full text-muted-foreground bg-muted/50">
+                        <ImageOff className="h-16 w-16 mb-2" />
+                        <p>Image not available</p>
+                      </div>
+                    )}
+                    <div className="absolute inset-x-0 bottom-0 p-4 md:p-6 bg-gradient-to-t from-black/80 via-black/50 to-transparent">
+                      <h2 className="text-2xl md:text-3xl font-bold text-white drop-shadow-lg">{searchResult.name}</h2>
                     </div>
-                  )}
-                  <div className="absolute inset-x-0 bottom-0 p-4 md:p-6 bg-gradient-to-t from-black/80 via-black/50 to-transparent">
-                    <h2 className="text-2xl md:text-3xl font-bold text-white drop-shadow-lg">{searchResult.name}</h2>
                   </div>
-                </div>
-                <CardContent className="p-4 md:p-6 flex-grow flex flex-col">
-                  <p className="text-md text-muted-foreground mb-1 italic">{searchResult.tagline}</p>
-                  <p className="text-base text-foreground mb-4 whitespace-pre-line">{searchResult.description}</p>
-                  <Accordion type="single" collapsible className="w-full -mx-1">
-                    {renderDetailAccordionItem(Map, "Key Attractions / Activities", searchResult.attractions, `search-attr-${searchResult.name.replace(/\s+/g, '-')}`)}
-                    {renderDetailAccordionItem(RouteIcon, "How to Reach", searchResult.howToReach, `search-howtoreach-${searchResult.name.replace(/\s+/g, '-')}`)}
-                    {renderDetailAccordionItem(Calendar, "Best Time to Visit", searchResult.bestTimeToVisit, `search-time-${searchResult.name.replace(/\s+/g, '-')}`)}
-                    {renderDetailAccordionItem(MessageCircleQuestion, "Local Tips", searchResult.localTips, `search-tips-${searchResult.name.replace(/\s+/g, '-')}`)}
-                  </Accordion>
-                </CardContent>
-              </Card>
+                  <CardContent className="p-4 md:p-6 flex-grow flex flex-col">
+                    <p className="text-md text-muted-foreground mb-1 italic">{searchResult.tagline}</p>
+                    <p className="text-base text-foreground mb-4 whitespace-pre-line">{searchResult.description}</p>
+                    <Accordion type="single" collapsible className="w-full -mx-1">
+                      {renderDetailAccordionItem(Map, "Key Attractions / Activities", searchResult.attractions, `search-attr-${searchResult.name.replace(/\s+/g, '-')}`)}
+                      {renderDetailAccordionItem(RouteIcon, "How to Reach", searchResult.howToReach, `search-howtoreach-${searchResult.name.replace(/\s+/g, '-')}`)}
+                      {renderDetailAccordionItem(Calendar, "Best Time to Visit", searchResult.bestTimeToVisit, `search-time-${searchResult.name.replace(/\s+/g, '-')}`)}
+                      {renderDetailAccordionItem(MessageCircleQuestion, "Local Tips", searchResult.localTips, `search-tips-${searchResult.name.replace(/\s+/g, '-')}`)}
+                    </Accordion>
+                  </CardContent>
+                </Card>
+              )
             )}
           </>
         )}
@@ -252,7 +264,7 @@ export default function RecommendationsPage() {
           <>
             <div className="mb-10">
               <h2 className="text-2xl font-semibold text-center text-foreground mb-6">Or, Browse by Category:</h2>
-              <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-3 gap-4 max-w-4xl mx-auto"> {/* Adjusted lg:grid-cols-3 for 6 items */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4 max-w-4xl mx-auto"> 
                 {categories.map((cat) => (
                   <Button
                     key={cat.id}
@@ -384,3 +396,4 @@ export default function RecommendationsPage() {
 
 
     
+
