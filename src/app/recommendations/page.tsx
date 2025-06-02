@@ -327,7 +327,7 @@ export default function RecommendationsPage() {
                   <Button
                     key={cat.id}
                     variant={selectedCategory === cat.id ? "default" : "outline"}
-                    size="lg"
+                    size="sm"
                     className={`text-base h-14 ${selectedCategory === cat.id ? 'bg-accent text-accent-foreground hover:bg-accent/90' : 'border-primary text-primary hover:bg-primary/10'}`}
                     onClick={() => fetchRecommendations(cat.id)}
                     disabled={isLoadingCategories && selectedCategory === cat.id}
@@ -400,7 +400,7 @@ export default function RecommendationsPage() {
                         </div>
                       </div>
                       <CardContent className="p-4 pt-3 md:p-5 md:pt-4 flex-grow flex flex-col">
-                        <p className="text-sm text-muted-foreground mb-3 line-clamp-3 h-12">{item.tagline}</p> 
+                        <p className="text-sm text-muted-foreground mb-3 line-clamp-3 h-12" style={{ display: 'contents' }}>{item.tagline}</p>
                         <Accordion type="single" collapsible className="w-full -mx-1 mb-4">
                             {renderDetailAccordionItem(Clock, "Suggested Duration", item.suggestedDuration, `cat-duration-${item.name.replace(/\s+/g, '-')}`)}
                             {renderDetailAccordionItem(Home, "Accommodations", item.accommodations, `cat-accomo-${item.name.replace(/\s+/g, '-')}`)}
