@@ -220,7 +220,7 @@ export default function RecommendationsPage() {
       </div>
 
       
-      <Card className="mb-10 bg-background border-none shadow-none">
+      <Card className="mb-10 bg-white border-1 shadow-lg">
         <CardContent className="p-4 md:p-6">
           <div className="flex flex-col sm:flex-row items-center gap-3 md:gap-4">
             <Input

@@ -29,7 +29,7 @@ export function Header() {
       <div className="container flex h-20 items-center justify-between">
         <Link href="/" className="flex items-center gap-2" prefetch={true} onClick={() => handleNavClick('Logo', '/')}>
           <Mountain className="h-8 w-8 text-primary" />
-          <span className="text-2xl font-bold tracking-tight text-primary">Visit Nepal</span>
+          <span className="text-2xl font-bold tracking-tight text-primary">TravelBuddy</span>
         </Link>
 
         <nav className="hidden md:flex items-center space-x-8 text-base font-medium">
