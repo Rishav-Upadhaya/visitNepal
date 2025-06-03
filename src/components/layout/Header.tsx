@@ -72,7 +72,7 @@ export function Header() {
                   <SheetClose asChild>
                     <Link href="/" className="flex items-center gap-2" onClick={() => handleNavClick('MobileLogo', '/')}>
                       <Mountain className="h-8 w-8 text-primary" />
-                      <span className="text-xl font-bold text-primary">Visit Nepal</span>
+                      <span className="text-xl font-bold text-primary">TravelBuddy</span>
                     </Link>
                   </SheetClose>
                 </div>
