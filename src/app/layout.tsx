@@ -24,7 +24,7 @@ export const metadata: Metadata = {
   openGraph: {
       title: 'Visit Nepal - Travel, Tour & Explore the Himalayas',
       description: 'Your ultimate guide to travel and tours in Nepal. Plan your visit, explore majestic Himalayas, and book your adventure.',
-      url: 'https://your-website-url.com', // Replace with your actual domain
+      url: 'https://visitnepal.vercel.app', // Replace with your actual domain
       siteName: 'Visit Nepal',
       // images: [ // Add a default social sharing image
       //   {

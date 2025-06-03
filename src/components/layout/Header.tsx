@@ -10,8 +10,8 @@ import { logUserEvent } from '@/lib/logger'; // Import the logger
 
 const navItems = [
   { href: '/', label: 'Home', icon: Home },
+  { href: '/recommendations', label: 'Discover', icon: Star }, // New Item
   { href: '/districts', label: 'Districts', icon: MapPinned },
-  { href: '/recommendations', label: 'Recommendations', icon: Star }, // New Item
   { href: '/plan-trip', label: 'Plan Your Trip', icon: Route },
 ];
 
